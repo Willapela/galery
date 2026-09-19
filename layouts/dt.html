@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DSPEEDV5</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Outfit:wght@600;800;900&display=swap');
+
+    :root {
+      --bg: #121214;
+      --manga-paper: #f0ebd8;
+      --manga-black: #000000;
+      --manga-accent: #ff2a5f;
+      --manga-cyan: #00f0ff;
+      --manga-yellow: #ffe14d;
+      --border-thick: 3px solid var(--manga-black);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
+    html { font-size: clamp(14px, 4vw, 17px); }
+
+    body {
+      background-color: var(--bg);
+      color: var(--manga-black);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .manga-frame {
+      width: 100%;
+      max-width: 380px;
+      background-color: var(--manga-paper);
+      border: 4px solid var(--manga-black);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 8px 8px 0px var(--manga-accent);
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow .3s;
+    }
+    .manga-frame::before {
+      content: ""; position: absolute; top:0; left:0; right:0; bottom:0;
+      background: radial-gradient(var(--manga-black) 15%, transparent 16%);
+      background-size: 8px 8px; opacity: 0.05; pointer-events: none;
+    }
+
+    .manga-header { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid var(--manga-black); padding-bottom:10px; }
+    .manga-title { font-family:'Bangers',cursive; font-size:1.7rem; letter-spacing:2px; text-transform:uppercase; background:var(--manga-black); color:var(--manga-paper); padding:2px 10px; transform:rotate(-2deg); }
+    .ch-number { font-weight:900; font-size:.75rem; border:2px solid var(--manga-black); padding:2px 6px; background:#fff; cursor:pointer; }
+
+    .manga-panel { border: var(--border-thick); background:#fff; padding:20px; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:4px 4px 0px var(--manga-black); }
+    .sfx-text { position:absolute; top:8px; right:12px; font-family:'Bangers',cursive; font-size:1.4rem; color:var(--manga-accent); transform:rotate(12deg); pointer-events:none; transition:all .2s ease; }
+    .status-badge { font-weight:800; font-size:.75rem; text-transform:uppercase; background:var(--manga-paper); border:2px solid var(--manga-black); padding:4px 12px; margin-bottom:20px; transition: background .2s; }
+
+    .trigger-btn { width:110px; height:110px; border-radius:50%; background:var(--manga-paper); border:var(--border-thick); cursor:pointer; display:flex; justify-content:center; align-items:center; position:relative; box-shadow:4px 4px 0px var(--manga-black); transition: transform .1s ease, background-color .3s; outline:none; }
+    .trigger-btn:active { transform:translate(2px,2px); box-shadow:2px 2px 0px var(--manga-black); }
+    .trigger-icon { width:46px; height:46px; fill:none; stroke:var(--manga-black); stroke-width:2; }
+
+    .ip-box { margin-top:20px; font-weight:800; font-size:.8rem; background:#000; color:#fff; padding:4px 12px; }
+
+    .server-panel { border: var(--border-thick); background:#fff; padding:12px; display:flex; align-items:center; justify-content:space-between; box-shadow:4px 4px 0px var(--manga-black); cursor:pointer; }
+    .server-flag { font-size:1.6rem; line-height:1; border:2px solid var(--manga-black); width:42px; height:42px; display:flex; justify-content:center; align-items:center; background:var(--manga-paper); flex-shrink:0; overflow:hidden; }
+    .server-flag img { width:100%; height:100%; object-fit:cover; display:block; }
+    .server-info { min-width:0; }
+    .server-info h3 { font-size:.9rem; font-weight:900; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .server-info p { font-size:.7rem; font-weight:600; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    .manga-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .grid-box { border: var(--border-thick); background:#fff; padding:10px; text-align:center; box-shadow:3px 3px 0px var(--manga-black); }
+    .grid-label { font-size:.65rem; font-weight:900; text-transform:uppercase; }
+    .grid-value { font-family:'Bangers',cursive; font-size:1.2rem; letter-spacing:1px; }
+
+    .action-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+    .action-box { border: var(--border-thick); background:#fff; padding:12px 6px; text-align:center; box-shadow:3px 3px 0px var(--manga-black); cursor:pointer; transition: transform .1s; }
+    .action-box:active { transform:translate(2px,2px); box-shadow:1px 1px 0px var(--manga-black); }
+    .action-box i { font-size:1.2rem; }
+    .action-box span { display:block; font-size:.62rem; font-weight:900; text-transform:uppercase; margin-top:4px; }
+
+    .manga-toggle-row { display:flex; align-items:center; justify-content:space-between; border:var(--border-thick); background:#fff; padding:12px 14px; box-shadow:3px 3px 0px var(--manga-black); }
+    .manga-toggle { font-family:'Bangers',cursive; font-size:.85rem; letter-spacing:1px; border:2px solid var(--manga-black); padding:5px 14px; cursor:pointer; background:#fff; transition:.15s; }
+    .manga-toggle.on { background: var(--manga-cyan); }
+
+    body[data-state="CONNECTED"] .manga-frame { box-shadow: 8px 8px 0px var(--manga-cyan); }
+    body[data-state="CONNECTED"] .trigger-btn { background: var(--manga-cyan); }
+    body[data-state="CONNECTED"] .status-badge { background: var(--manga-cyan); }
+
+    body[data-state="CONNECTING"] .trigger-btn, body[data-state="AUTH"] .trigger-btn, body[data-state="DISCONNECTING"] .trigger-btn { background: var(--manga-yellow); animation: mangaPulse .6s infinite alternate; }
+    body[data-state="CONNECTING"] .status-badge, body[data-state="AUTH"] .status-badge, body[data-state="DISCONNECTING"] .status-badge { background: var(--manga-yellow); }
+    @keyframes mangaPulse { from{ transform:scale(1); } to{ transform:scale(1.06); } }
+
+    body[data-state="NO_NETWORK"] .manga-frame, body[data-state="AUTH_FAILED"] .manga-frame { box-shadow: 8px 8px 0px var(--manga-accent); }
+    body[data-state="NO_NETWORK"] .trigger-btn, body[data-state="AUTH_FAILED"] .trigger-btn { background: var(--manga-accent); }
+    body[data-state="NO_NETWORK"] .status-badge, body[data-state="AUTH_FAILED"] .status-badge { background: var(--manga-accent); color:#fff; }
+
+    .speed-modal{
+    width:min(92vw,500px);
+    aspect-ratio:1/1;
+}
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:50; align-items:center; justify-content:center; padding:16px; }
+    .modal-overlay.open { display:flex; }
+    .modal-pop { animation: modalPop .2s ease-out; }
+    @keyframes modalPop { from{opacity:0; transform:translateY(24px) scale(.96);} to{opacity:1; transform:translateY(0) scale(1);} }
+    .manga-modal { width:100%; max-width:380px; background:var(--manga-paper); border:4px solid var(--manga-black); border-radius:12px; box-shadow:8px 8px 0px var(--manga-accent); max-height:85vh; display:flex; flex-direction:column; overflow:hidden; }
+    .manga-modal-header { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:3px solid var(--manga-black); flex-shrink:0; }
+    .manga-modal-title { font-family:'Bangers',cursive; font-size:1.2rem; letter-spacing:1px; text-transform:uppercase; }
+    .manga-close { border:2px solid var(--manga-black); background:#fff; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:2px 2px 0 var(--manga-black); flex-shrink:0; }
+    .manga-close:active { transform:translate(1px,1px); box-shadow:1px 1px 0 var(--manga-black); }
+    .manga-modal-body { padding:16px 18px; overflow-y:auto; }
+    .manga-input { border:2.5px solid var(--manga-black); background:#fff; padding:10px 14px; display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .manga-input input { flex:1; border:none; outline:none; background:transparent; font-size:1rem; font-weight:600; font-family:'Outfit',sans-serif; }
+    .manga-btn { font-family:'Bangers',cursive; letter-spacing:1px; text-transform:uppercase; border:2.5px solid var(--manga-black); padding:12px; text-align:center; cursor:pointer; box-shadow:3px 3px 0 var(--manga-black); transition:.1s; background:#fff; }
+    .manga-btn:active { transform:translate(2px,2px); box-shadow:1px 1px 0 var(--manga-black); }
+    .manga-btn-primary { background: var(--manga-cyan); }
+    .manga-btn-danger { background: var(--manga-accent); color:#fff; }
+    .server-list-item { border:2px solid var(--manga-black); background:#fff; padding:10px 12px; display:flex; align-items:center; gap:12px; margin-bottom:8px; cursor:pointer; box-shadow:2px 2px 0 var(--manga-black); }
+    .server-list-item.active { background: var(--manga-cyan); }
+    .log-entry { display:block; font-family:'Courier New',monospace; font-size:.68rem; line-height:1.6; border-bottom:1px dashed rgba(0,0,0,.15); }
+    #logBox { background:#fff; border:2.5px solid var(--manga-black); padding:10px; height:280px; overflow-y:auto; }
+    ::-webkit-scrollbar { width:0; height:0; }
+  </style>
+</head>
+<body data-state="DISCONNECTED">
+
+  <div class="manga-frame">
+
+    <div class="manga-header">
+      <div class="manga-title">DSPEEDV5</div>
+      <div class="ch-number" onclick="openMenuModal()">MENU ☰</div>
+    </div>
+
+    <div class="manga-panel">
+      <div class="sfx-text" id="sfx"></div>
+      <div class="status-badge" id="statusBadge">OFFLINE</div>
+
+      <button class="trigger-btn" id="triggerBtn" onclick="handleConnect()">
+        <svg class="trigger-icon" viewBox="0 0 24 24">
+          <path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.8 0"/>
+        </svg>
+      </button>
+
+      <div class="ip-box">IP: <span id="ipDisplay">—</span></div>
+    </div>
+
+    <div class="server-panel" onclick="openServerModal()">
+      <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+        <div class="server-flag" id="serverFlagIcon">🌐</div>
+        <div class="server-info">
+          <h3 id="current-server">SELECIONAR SERVIDOR</h3>
+          <p id="serverPingText">PING: — • Toque pra escolher</p>
+        </div>
+      </div>
+      <div style="font-family:'Bangers',cursive; font-size:1.1rem; flex-shrink:0;">SELECT ›</div>
+    </div>
+
+    <div class="manga-grid">
+      <div class="grid-box">
+        <div class="grid-label">Download</div>
+        <div class="grid-value" id="downVal">0.0 MB/S</div>
+      </div>
+      <div class="grid-box">
+        <div class="grid-label">Upload</div>
+        <div class="grid-value" id="upVal">0.0 MB/S</div>
+      </div>
+    </div>
+
+    <div class="action-row" style="grid-template-columns:1fr;">
+      <div class="action-box" onclick="openLogsModal()"><i class="fa-solid fa-scroll"></i><span>Registros</span></div>
+    </div>
+
+  </div>
+
+  <div id="connectModal" class="modal-overlay">
+    <div class="manga-modal modal-pop">
+      <div class="manga-modal-header">
+        <div class="manga-modal-title">Invocar Conexão</div>
+        <div class="manga-close" onclick="closeConnectModal()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <div class="manga-modal-body">
+        <div id="userGroup" class="manga-input"><i class="fa-solid fa-user"></i><input id="username" type="text" placeholder="Usuário"></div>
+        <div id="passGroup" class="manga-input"><i class="fa-solid fa-lock"></i><input id="password" type="password" placeholder="Senha"><i id="eyeIcon" class="fa-solid fa-eye" style="cursor:pointer" onclick="togglePwd()"></i></div>
+        <div id="uuidGroup" class="manga-input" style="display:none"><i class="fa-solid fa-key"></i><input id="uuid" type="text" placeholder="UUID V2Ray"></div>
+        <div style="display:flex; gap:10px; margin-top:6px;">
+          <div class="manga-btn" style="flex:1" onclick="closeConnectModal()">Fechar</div>
+          <div class="manga-btn manga-btn-primary" style="flex:2" onclick="startConnection()">Conectar!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="serverModal" class="modal-overlay">
+    <div class="manga-modal modal-pop">
+      <div class="manga-modal-header">
+        <div class="manga-modal-title">Escolher Servidor</div>
+        <div class="manga-close" onclick="closeServerModal()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <div class="manga-modal-body" id="serverListInline">
+        <p style="font-weight:600; text-align:center; color:#666;">Carregando servidores…</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="logsModal" class="modal-overlay">
+    <div class="manga-modal modal-pop">
+      <div class="manga-modal-header">
+        <div class="manga-modal-title">Registros</div>
+        <div style="display:flex; gap:8px;">
+          <div class="manga-btn" style="padding:6px 12px; font-size:.7rem;" onclick="clearLogs()">Limpar</div>
+          <div class="manga-close" onclick="closeLogsModal()"><i class="fa-solid fa-xmark"></i></div>
+        </div>
+      </div>
+      <div class="manga-modal-body">
+        <div id="logBox"><span class="log-entry">Aguardando conexão…</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="menuModal" class="modal-overlay">
+    <div class="manga-modal modal-pop">
+      <div class="manga-modal-header">
+        <div class="manga-modal-title">Menu</div>
+        <div class="manga-close" onclick="closeMenuModal()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <div class="manga-modal-body">
+        <div class="manga-toggle-row" style="margin-bottom:16px;">
+          <span style="font-weight:800; font-size:.85rem;">⚡ Auto Connect</span>
+          <div id="autoConnect" class="manga-toggle" onclick="openAutoConnectInfo()">DESATIVADO</div>
+        </div>
+        <div class="action-row" style="grid-template-columns:1fr 1fr 1fr; margin-bottom:10px;">
+          <div class="action-box" onclick="menuAct('update')"><i class="fa-solid fa-rotate"></i><span>Atualizar</span></div>
+          <div class="action-box" onclick="menuAct('speed')"><i class="fa-solid fa-gauge-high"></i><span>Speed Test</span></div>
+          <div class="action-box" onclick="menuAct('painel')"><i class="fa-solid fa-earth-americas"></i><span>Painel</span></div>
+          <div class="action-box" onclick="menuAct('apn')"><i class="fa-solid fa-sliders"></i><span>APN</span></div>
+          <div class="action-box" onclick="menuAct('hotspot')"><i class="fa-solid fa-wifi"></i><span>Hotspot</span></div>
+          <div class="action-box" onclick="menuAct('airplane')"><i class="fa-solid fa-plane"></i><span id="airplaneLbl">Avião</span></div>
+          <div class="action-box" onclick="menuAct('battery')"><i class="fa-solid fa-battery-full"></i><span>Bateria</span></div>
+          <div class="action-box" onclick="menuAct('check')"><i class="fa-solid fa-user-check"></i><span>Check User</span></div>
+          <div class="action-box" onclick="menuAct('clean')" style="border-color:var(--manga-accent);"><i class="fa-solid fa-trash" style="color:var(--manga-accent);"></i><span style="color:var(--manga-accent);">Limpar</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="autoConnectModal" class="modal-overlay">
+    <div class="manga-modal modal-pop">
+      <div class="manga-modal-header">
+        <div class="manga-modal-title">⚡ Auto Connect</div>
+        <div class="manga-close" onclick="closeAutoConnectInfo()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <div class="manga-modal-body">
+        <p style="font-size:.85rem; line-height:1.6; margin-bottom:10px;">
+          Quando <b>ativado</b>, o app faz duas coisas automaticamente:
+        </p>
+        <div class="manga-input" style="align-items:flex-start;">
+          <i class="fa-solid fa-power-off" style="margin-top:3px;"></i>
+          <div>
+            <div style="font-weight:800; font-size:.8rem;">Ao abrir o app</div>
+            <div style="font-size:.75rem; color:#555;">Conecta sozinho, sem precisar tocar no botão.</div>
+          </div>
+        </div>
+        <div class="manga-input" style="align-items:flex-start;">
+          <i class="fa-solid fa-list-ol" style="margin-top:3px;"></i>
+          <div>
+            <div style="font-weight:800; font-size:.8rem;">Testa servidor por servidor</div>
+            <div style="font-size:.75rem; color:#555;">Começa pelo servidor atual e, se ele falhar, testa o próximo da lista automaticamente até um conectar.</div>
+          </div>
+        </div>
+        <div class="manga-input" style="align-items:flex-start;">
+          <i class="fa-solid fa-rotate-right" style="margin-top:3px;"></i>
+          <div>
+            <div style="font-weight:800; font-size:.8rem;">Se a conexão cair</div>
+            <div style="font-size:.75rem; color:#555;">Repete a mesma varredura automaticamente (até 3 rodadas) — não age se você desconectar manualmente.</div>
+          </div>
+        </div>
+        <p style="font-size:.7rem; color:#666; text-align:center; margin:12px 0 6px;">Status atual: <b id="acInfoStatus">DESATIVADO</b></p>
+        <div style="display:flex; gap:10px; margin-top:6px;">
+          <div class="manga-btn" style="flex:1" onclick="closeAutoConnectInfo()">Fechar</div>
+          <div id="acInfoToggleBtn" class="manga-btn manga-btn-primary" style="flex:2" onclick="confirmToggleAutoConnect()">Ativar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div id="speedModal" class="modal-overlay">
+    <div class="manga-modal modal-pop speed-modal">
+      <div class="manga-modal-header">
+        <div class="manga-modal-title">Speed Test</div>
+        <div class="manga-close" onclick="closeSpeedModal()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <iframe id="speedFrame" src="" allow="autoplay" allowfullscreen style="flex:1; width:100%; border:none;"></iframe>
+    </div>
+  </div>
+
+  <div id="hotspotModal" class="modal-overlay">
+    <div class="manga-modal modal-pop">
+      <div class="manga-modal-header">
+        <div class="manga-modal-title">Hotspot</div>
+        <div class="manga-close" onclick="closeHotspotModal()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <div class="manga-modal-body">
+        <div class="manga-input" style="align-items:center;">
+          <div id="hsDot" style="width:14px; height:14px; border-radius:50%; background:#ccc; flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:.7rem; font-weight:900;">STATUS</div>
+            <div id="hsStatusTxt" style="font-weight:700;">Verificando…</div>
+            <div id="hsPortTxt" style="font-size:.7rem; color:#666; display:none;"></div>
+          </div>
+        </div>
+        <p style="font-size:.75rem; color:#666; text-align:center; margin:10px 0;">Compartilhe sua VPN via Wi-Fi hotspot</p>
+        <div style="display:flex; gap:10px;">
+          <div id="hsToggleBtn" class="manga-btn manga-btn-primary" style="flex:2;" onclick="toggleHotspot()">Carregando…</div>
+          <div class="manga-btn" style="flex:1;" onclick="closeHotspotModal()">Fechar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="checkUserModal" class="modal-overlay">
+    <div class="manga-modal modal-pop">
+      <div class="manga-modal-header">
+        <div class="manga-modal-title">Check User</div>
+        <div class="manga-close" onclick="closeCheckUserModal()"><i class="fa-solid fa-xmark"></i></div>
+      </div>
+      <div class="manga-modal-body">
+        <div id="cuLoading" style="text-align:center; padding:20px 0;">
+          <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem;"></i>
+          <p style="margin-top:10px; font-weight:600; color:#666;">Verificando usuário…</p>
+        </div>
+        <div id="cuContent" style="display:none;">
+          <div class="manga-input"><i class="fa-solid fa-user"></i><div><div style="font-size:.65rem; font-weight:900;">USUÁRIO</div><div id="cuUsername" style="font-weight:700;">—</div></div></div>
+          <div class="manga-input"><i class="fa-solid fa-calendar-days"></i><div><div style="font-size:.65rem; font-weight:900;">EXPIRA EM</div><div id="cuExpiration" style="font-weight:700;">—</div></div></div>
+          <div class="manga-input"><i class="fa-solid fa-hourglass-half"></i><div><div style="font-size:.65rem; font-weight:900;">DIAS RESTANTES</div><div id="cuDays" style="font-weight:700;">—</div></div></div>
+          <div class="manga-input"><i class="fa-solid fa-network-wired"></i><div><div style="font-size:.65rem; font-weight:900;">CONEXÕES</div><div id="cuConnections" style="font-weight:700;">—</div></div></div>
+          <p id="cuMessage" style="display:none; font-size:.8rem; color:#666; text-align:center;"></p>
+        </div>
+        <div id="cuError" style="display:none; text-align:center; padding:20px 0;">
+          <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; color:var(--manga-accent);"></i>
+          <p style="margin-top:10px; font-weight:700; color:var(--manga-accent);">Não foi possível verificar o usuário.</p>
+        </div>
+        <div class="manga-btn manga-btn-primary" style="margin-top:8px;" onclick="openCheckUserModal()">Verificar novamente</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+
+const B = {
+  exec(n,fb='') { try{const o=window[n];if(o&&typeof o.execute==='function')return o.execute();}catch(e){}return fb; },
+  execW(n,v) { try{const o=window[n];if(o&&typeof o.execute==='function')o.execute(String(v));}catch(e){} },
+  get(n,fb='') { try{const o=window[n];if(o&&typeof o.get==='function')return o.get();}catch(e){}return fb; },
+  set(n,v) { try{const o=window[n];if(o&&typeof o.set==='function')o.set(String(v??''));}catch(e){} },
+  json(n,fb) { try{return JSON.parse(B.exec(n,'')||'');}catch(e){return fb;} },
+  clean(v) { const s=String(v??'').trim();return s.toLowerCase()==='locked'?'':s; }
+};
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+['connectModal','serverModal','logsModal','menuModal','speedModal','hotspotModal','checkUserModal','autoConnectModal'].forEach(id=>{
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const el = document.getElementById(id);
+    el.addEventListener('click', e=>{ if(e.target===el) closeModal(id); });
+  });
+});
+function openConnectModal(){ openModal('connectModal'); }
+function closeConnectModal(){ closeModal('connectModal'); }
+function openServerModal(){ renderServersInline(); openModal('serverModal'); }
+function closeServerModal(){ closeModal('serverModal'); }
+function openLogsModal(){ openModal('logsModal'); pullLogs(); }
+function closeLogsModal(){ closeModal('logsModal'); }
+function openMenuModal(){ openModal('menuModal'); }
+function closeMenuModal(){ closeModal('menuModal'); }
+function openSpeedModal(){ openModal('speedModal'); document.getElementById('speedFrame').src='https://fast.com'; }
+function closeSpeedModal(){ closeModal('speedModal'); document.getElementById('speedFrame').src=''; }
+function openHotspotModal(){ refreshHotspot(); openModal('hotspotModal'); hsPoll=setInterval(refreshHotspot,2000); }
+function closeHotspotModal(){ closeModal('hotspotModal'); clearInterval(hsPoll); hsPoll=null; }
+
+let logClearMarker=null;
+function loadClearMarker(){ try{ logClearMarker = localStorage.getItem('mvpn_log_clear_marker') || null; }catch(e){ logClearMarker=null; } }
+function saveClearMarker(m){ logClearMarker=m; try{ localStorage.setItem('mvpn_log_clear_marker', m||''); }catch(e){} }
+function rowKey(r){ if(typeof r==='string') return r; try{ return JSON.stringify(r); }catch(e){ return String(r); } }
+function logTime(){ return new Date().toTimeString().slice(0,8); }
+function log(msg,color){
+  const box=document.getElementById('logBox'); if(!box) return;
+  const ph=box.querySelector('span');
+  if(ph && (ph.textContent.includes('Aguardando')||ph.textContent.includes('Log limpo'))) ph.remove();
+  const s=document.createElement('span'); s.className='log-entry'; s.style.color=color||'#333';
+  s.textContent=logTime()+' '+String(msg).replace(/<[^>]*>/g,'');
+  box.appendChild(s); while(box.children.length>60) box.removeChild(box.firstChild); box.scrollTop=box.scrollHeight;
+}
+function clearLogs(){
+  for(const k of ['DtClearLogs','DtClearLog','DtLogsClear']){ try{ if(window[k]?.execute) window[k].execute(); }catch(e){} }
+  try{
+    const raw=B.exec('DtGetLogs',''); const rows=JSON.parse(raw||'[]');
+    if(Array.isArray(rows)&&rows.length) saveClearMarker(rowKey(rows[rows.length-1])); else saveClearMarker('__EMPTY__');
+  }catch(e){ saveClearMarker('__EMPTY__'); }
+  const b=document.getElementById('logBox'); if(b) b.innerHTML='<span class="log-entry">Log limpo.</span>';
+}
+function pullLogs(){
+  try{
+    const raw=B.exec('DtGetLogs',''); if(!raw||raw==='[]') return;
+    let rows=JSON.parse(raw); if(!Array.isArray(rows)||!rows.length) return;
+    if(logClearMarker && logClearMarker!=='__EMPTY__'){
+      const idx=rows.findIndex(r=>rowKey(r)===logClearMarker); if(idx>=0) rows=rows.slice(idx+1);
+    }
+    if(!rows.length) return;
+    const box=document.getElementById('logBox'); const ph=box.querySelector('span'); if(ph) ph.remove();
+    box.innerHTML='';
+    rows.slice(-60).forEach(r=>{
+      let ts='',msg='';
+      if(typeof r==='string'){msg=r;}else{const k=Object.keys(r);ts=k[0]||'';msg=String(r[ts]||r.message||r.msg||'');}
+      msg=msg.replace(/<[^>]*>/g,'').trim(); if(!msg)return;
+      const line=ts?ts+' '+msg:msg; const sl=line.toLowerCase();
+      const c=/error|fail|falha|invalid|block|timeout/.test(sl)?'#ff2a5f':/connect|succes|101|200/.test(sl)?'#0a7a3d':/connect|auth|warn/.test(sl)?'#a8720a':'#333';
+      const s=document.createElement('span'); s.className='log-entry'; s.style.color=c; s.textContent=line;
+      box.appendChild(s);
+    });
+    box.scrollTop=box.scrollHeight;
+  }catch(e){}
+}
+
+let autoConnectEnabled=false, manualStop=false, prevVpnState='DISCONNECTED', reconnectAttempts=0;
+const MAX_RECONNECT_ATTEMPTS=3;
+const AUTO_SEQ_TIMEOUT_MS=9000;
+let autoSeqActive=false, autoSeqResolve=null, autoSeqList=[], autoSeqIndex=0;
+function loadAutoConnect(){
+  let v=false; try{v=localStorage.getItem('mvpn_autoconnect')==='1';}catch(e){}
+  autoConnectEnabled=v;
+  const el=document.getElementById('autoConnect');
+  if(el){ el.classList.toggle('on', v); el.textContent = v?'ATIVADO':'DESATIVADO'; }
+}
+function toggleAutoConnect(){
+  autoConnectEnabled=!autoConnectEnabled;
+  const el=document.getElementById('autoConnect');
+  el.classList.toggle('on', autoConnectEnabled); el.textContent = autoConnectEnabled?'ATIVADO':'DESATIVADO';
+  try{localStorage.setItem('mvpn_autoconnect',autoConnectEnabled?'1':'0');}catch(e){}
+  log('Auto Connect '+(autoConnectEnabled?'ativado':'desativado')+'.','#0a7a3d');
+  if(!autoConnectEnabled) reconnectAttempts=0;
+}
+function openAutoConnectInfo(){
+  document.getElementById('acInfoStatus').textContent = autoConnectEnabled?'ATIVADO':'DESATIVADO';
+  const btn=document.getElementById('acInfoToggleBtn');
+  btn.textContent = autoConnectEnabled?'Desativar':'Ativar';
+  btn.className = 'manga-btn ' + (autoConnectEnabled?'manga-btn-danger':'manga-btn-primary');
+  openModal('autoConnectModal');
+}
+function closeAutoConnectInfo(){ closeModal('autoConnectModal'); }
+function confirmToggleAutoConnect(){
+  toggleAutoConnect();
+  openAutoConnectInfo();
+}
+function flattenServers(){
+  const out=[];
+  configs.forEach(g=>(g.items||[]).forEach(it=>out.push(it)));
+  return out;
+}
+function waitForConnectionResult(timeoutMs){
+  return new Promise(resolve=>{
+    let done=false;
+    const timer=setTimeout(()=>{ if(done)return; done=true; autoSeqResolve=null; resolve('TIMEOUT'); }, timeoutMs);
+    autoSeqResolve=(val)=>{ if(done)return; done=true; clearTimeout(timer); autoSeqResolve=null; resolve(val); };
+  });
+}
+async function tryNextServerInSequence(){
+  if(autoSeqIndex>=autoSeqList.length){
+    autoSeqActive=false;
+    log('[AUTO CONNECT] Nenhum servidor conectou.','#ff2a5f');
+    renderState('DISCONNECTED');
+    return;
+  }
+  const item=autoSeqList[autoSeqIndex];
+  autoSeqIndex++;
+  selectedId=item.id; dtSetCfg(item.id); displayServer(item);
+  try{localStorage.setItem('mvpn_srv',JSON.stringify(item));}catch(e){}
+  renderServersInline();
+  log('[AUTO CONNECT] Testando: '+(item.name||item.id)+' ('+autoSeqIndex+'/'+autoSeqList.length+')','#a8720a');
+  renderState('CONNECTING');
+  B.exec('DtExecuteVpnStart');
+
+  const result = await waitForConnectionResult(AUTO_SEQ_TIMEOUT_MS);
+  if(result==='CONNECTED'){
+    autoSeqActive=false;
+    log('[AUTO CONNECT] Conectado com sucesso em '+(item.name||item.id)+'!','#0a7a3d');
+    return;
+  }
+  log('[AUTO CONNECT] '+(item.name||item.id)+' falhou, tentando próximo…','#ff2a5f');
+  try{ B.exec('DtExecuteVpnStop'); }catch(e){}
+  await new Promise(r=>setTimeout(r,800));
+  await tryNextServerInSequence();
+}
+function startAutoConnectSequence(){
+  if(autoSeqActive) return;
+  const list=flattenServers();
+  if(!list.length){ log('[AUTO CONNECT] Nenhum servidor disponível.','#ff2a5f'); return; }
+  let ordered=list;
+  const curIdx=list.findIndex(it=>String(it.id)===String(selectedId));
+  if(curIdx>0) ordered=[...list.slice(curIdx), ...list.slice(0,curIdx)];
+  autoSeqActive=true; autoSeqList=ordered; autoSeqIndex=0;
+  log('[AUTO CONNECT] Testando servidores automaticamente…','#a8720a');
+  tryNextServerInSequence();
+}
+function tryAutoReconnect(){
+  if(reconnectAttempts>=MAX_RECONNECT_ATTEMPTS){ log('[AUTO CONNECT] Limite de tentativas atingido.','#ff2a5f'); reconnectAttempts=0; return; }
+  reconnectAttempts++;
+  log(`[AUTO CONNECT] Conexão caiu. Testando servidores… (rodada ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`,'#a8720a');
+  startAutoConnectSequence();
+}
+function maybeAutoConnect(currentState){
+  if(!autoConnectEnabled) return;
+  if(vpnConnected||vpnConnecting) return;
+  if(currentState!=='DISCONNECTED') return;
+  log('[AUTO CONNECT] Conectando automaticamente ao abrir o app…','#0a7a3d');
+  startAutoConnectSequence();
+}
+
+let vpnConnected=false, vpnConnecting=false;
+const STATE_MAP = {
+  CONNECTED:     {badge:'CONECTADO!!', sfx:''},
+  CONNECTING:    {badge:'CARREGANDO...', sfx:''},
+  AUTH:          {badge:'AUTENTICANDO...', sfx:''},
+  DISCONNECTING: {badge:'PARANDO...', sfx:''},
+  NO_NETWORK:    {badge:'SEM REDE', sfx:''},
+  AUTH_FAILED:   {badge:'FALHA LOGIN', sfx:''},
+  DISCONNECTED:  {badge:'OFFLINE', sfx:''},
+};
+function renderState(state){
+  const s = STATE_MAP[state] || STATE_MAP.DISCONNECTED;
+  document.body.dataset.state = state;
+  document.getElementById('statusBadge').textContent = s.badge;
+  document.getElementById('sfx').textContent = s.sfx;
+
+  vpnConnected = state==='CONNECTED';
+  vpnConnecting = ['CONNECTING','AUTH','DISCONNECTING'].includes(state);
+  if(state==='CONNECTED'){ log('✓ Conectado!','#0a7a3d'); reconnectAttempts=0; startStatsPolling(); refreshIp(); }
+  else { stopStatsPolling(); resetStats(); refreshIp(); }
+  if(state==='DISCONNECTED') log('Desconectado.','#a8720a');
+  if(state==='AUTH_FAILED') log('Falha de autenticação.','#ff2a5f');
+  if(state==='NO_NETWORK') log('Sem rede.','#ff2a5f');
+
+  if(autoSeqResolve){
+    if(state==='CONNECTED') autoSeqResolve('CONNECTED');
+    else if(state==='AUTH_FAILED'||state==='NO_NETWORK') autoSeqResolve(state);
+  }
+
+  const wasActive=['CONNECTED','CONNECTING','AUTH'].includes(prevVpnState);
+  const droppedNow=['DISCONNECTED','NO_NETWORK'].includes(state);
+  if(autoConnectEnabled && wasActive && droppedNow && !manualStop && !autoSeqActive){ tryAutoReconnect(); }
+  manualStop=false;
+  prevVpnState=state;
+}
+window.DtVpnStateListener = s=>{if(s)renderState(s);};
+window.dtVpnStoppedSuccessListener = ()=>renderState('DISCONNECTED');
+window.dtConnectionErrorListener = e=>{log('[ERRO] '+(e&&(e.message||e.code||String(e))),'#ff2a5f');renderState('DISCONNECTED');};
+window.DtConnectionErrorListener = window.dtConnectionErrorListener;
+window.dtAuthErrorListener = window.dtConnectionErrorListener;
+window.DtLogsUpdatedListener = ()=>pullLogs();
+window.dtLogsUpdatedListener = window.DtLogsUpdatedListener;
+window.DtLogListener = m=>{if(m)log(String(m));};
+window.DtUpdatePayloadSuccessListener = ()=>{log('✓ Configs atualizadas!','#0a7a3d');loadConfigs();loadDefault();};
+window.DtUpdatePayloadErrorListener = m=>log('✗ Erro: '+(m||''),'#ff2a5f');
+window.dtCheckUserStartedListener = ()=>{log('Verificando usuário…','#a8720a');};
+window.dtCheckUserModelListener = function(j){
+  let d={};try{d=typeof j==='string'?JSON.parse(j):(j||{});}catch(e){}
+  if(d.username) log('Usuário: '+d.username,'#0a7a3d');
+  if(d.expiration_date) log('Expira: '+d.expiration_date,'#a8720a');
+  if(d.expiration_days!=null) log('Dias restantes: '+d.expiration_days,'#a8720a');
+  if(d.limit_connections) log('Conexões: '+(d.count_connections??0)+'/'+d.limit_connections,'#a8720a');
+  if(d.message) log(d.message,'#333');
+  fillCheckUserModal(d);
+};
+window.DtCheckUserModelListener = window.dtCheckUserModelListener;
+/* ══ CHECK USER ══ */
+let cuTimeout=null;
+function openCheckUserModal(){
+  openModal('checkUserModal');
+  document.getElementById('cuLoading').style.display='block';
+  document.getElementById('cuContent').style.display='none';
+  document.getElementById('cuError').style.display='none';
+  log('Verificando usuário…','#a8720a');
+  B.exec('DtStartCheckUser');
+  clearTimeout(cuTimeout);
+  cuTimeout=setTimeout(()=>{
+    if(document.getElementById('cuLoading').style.display!=='none'){
+      document.getElementById('cuLoading').style.display='none';
+      document.getElementById('cuError').style.display='block';
+    }
+  },10000);
+}
+function closeCheckUserModal(){ closeModal('checkUserModal'); clearTimeout(cuTimeout); }
+function fillCheckUserModal(d){
+  clearTimeout(cuTimeout);
+  const hasData = d && (d.username || d.expiration_date || d.expiration_days!=null || d.limit_connections);
+  document.getElementById('cuLoading').style.display='none';
+  if(!hasData){ document.getElementById('cuError').style.display='block'; document.getElementById('cuContent').style.display='none'; return; }
+  document.getElementById('cuError').style.display='none';
+  document.getElementById('cuContent').style.display='block';
+  document.getElementById('cuUsername').textContent = d.username || '—';
+  document.getElementById('cuExpiration').textContent = d.expiration_date || '—';
+  document.getElementById('cuDays').textContent = d.expiration_days!=null ? (d.expiration_days+' dias') : '—';
+  document.getElementById('cuConnections').textContent = d.limit_connections ? ((d.count_connections??0)+' / '+d.limit_connections) : '—';
+  const msgEl=document.getElementById('cuMessage');
+  if(d.message){msgEl.textContent=d.message;msgEl.style.display='block';}else{msgEl.style.display='none';}
+}
+
+function handleConnect(){
+  if(vpnConnecting||vpnConnected){
+    manualStop=true; reconnectAttempts=0;
+    renderState('DISCONNECTING');
+    log('Parando VPN…','#a8720a');
+    B.exec('DtExecuteVpnStop');
+    return;
+  }
+  openConnectModal();
+}
+function startConnection(){
+  B.set('DtUsername',document.getElementById('username').value);
+  B.set('DtPassword',document.getElementById('password').value);
+  B.set('DtUuid',document.getElementById('uuid').value||'');
+  if(selectedId) dtSetCfg(selectedId);
+  closeConnectModal();
+  renderState('CONNECTING');
+  log('Iniciando conexão VPN…','#a8720a');
+  B.exec('DtExecuteVpnStart');
+}
+
+let configs=[], selectedId=null;
+function dtSetCfg(id){const n=parseInt(id);try{window.DtSetConfig.execute(isNaN(n)?String(id):n);}catch(e){}}
+function iconEmoji(mode){const m=String(mode||'').toUpperCase();if(m.includes('V2RAY')||m.includes('VMESS')||m.includes('VLESS')||m.includes('XRAY'))return'🚀';if(m.includes('SSH'))return'📟';if(m.includes('SSL'))return'🔒';return'🌐';}
+function displayServer(item){
+  document.getElementById('current-server').textContent=(item.name||'—').toUpperCase();
+  const flagEl=document.getElementById('serverFlagIcon');
+  if(flagEl){
+    flagEl.innerHTML = (item.icon && item.icon.startsWith('http'))
+      ? `<img src="${item.icon}" alt="">`
+      : iconEmoji(item.mode);
+  }
+  const m=String(item.mode||'').toLowerCase();
+  const auth=item.auth||{};
+  const uuid=auth.v2ray_uuid||auth.manual_v2ray_uuid||m.includes('v2ray')||m.includes('xray')||m.includes('vmess')||m.includes('vless');
+  document.getElementById('uuidGroup').style.display = uuid?'flex':'none';
+  document.getElementById('userGroup').style.display = uuid?'none':'flex';
+  document.getElementById('passGroup').style.display = uuid?'none':'flex';
+}
+function findItem(id){for(const g of configs)for(const it of(g.items||[]))if(String(it.id)===String(id))return it;return null;}
+function selectServer(item){
+  selectedId=item.id; dtSetCfg(item.id); displayServer(item);
+  try{localStorage.setItem('mvpn_srv',JSON.stringify(item));}catch(e){}
+  renderServersInline();
+  closeServerModal();
+}
+function renderServersInline(){
+  const container=document.getElementById('serverListInline');
+  if(!configs.length){container.innerHTML='<p style="text-align:center;color:#666;font-weight:600;">Nenhum servidor disponível</p>';return;}
+  container.innerHTML='';
+  configs.forEach(g=>{
+    if(g.name){const lbl=document.createElement('div');lbl.style.cssText='font-weight:900;font-size:.7rem;text-transform:uppercase;margin:8px 0 4px;';lbl.textContent=g.name;container.appendChild(lbl);}
+    (g.items||[]).forEach(item=>{
+      const active=String(item.id)===String(selectedId);
+      const el=document.createElement('div');
+      el.className='server-list-item'+(active?' active':'');
+      const icDiv=document.createElement('div');
+      icDiv.style.cssText='font-size:1.3rem;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:2px solid #000;background:#f0ebd8;flex-shrink:0;overflow:hidden;';
+      icDiv.innerHTML=item.icon&&item.icon.startsWith('http')?`<img src="${item.icon}" style="width:100%;height:100%;object-fit:cover;">`:iconEmoji(item.mode);
+      const txtDiv=document.createElement('div');txtDiv.style.cssText='flex:1;min-width:0;';
+      txtDiv.innerHTML=`<div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${(item.name||'—').toUpperCase()}</div><div style="font-size:.7rem;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.description||item.mode||''}</div>`;
+      const chk=document.createElement('div');chk.innerHTML=active?'<i class="fa-solid fa-circle-check"></i>':'';
+      el.appendChild(icDiv);el.appendChild(txtDiv);el.appendChild(chk);
+      el.onclick=()=>selectServer(item);
+      container.appendChild(el);
+    });
+  });
+}
+function loadConfigs(){
+  try{configs=JSON.parse(B.exec('DtGetConfigs','[]')||'[]');}catch(e){configs=[];}
+  try{const cur=B.json('DtGetDefaultConfig',{});if(cur&&cur.id&&!findItem(cur.id))configs.unshift({id:'_imp',name:'IMPORTADO',items:[cur]});}catch(e){}
+}
+function loadDefault(){
+  try{const cur=B.json('DtGetDefaultConfig',{});if(cur&&cur.id){const item=findItem(cur.id)||cur;selectedId=item.id;dtSetCfg(item.id);displayServer(item);try{localStorage.setItem('mvpn_srv',JSON.stringify(item));}catch(e){}return;}}catch(e){}
+  try{const saved=JSON.parse(localStorage.getItem('mvpn_srv'));if(saved&&saved.id){const item=findItem(saved.id)||saved;selectedId=item.id;dtSetCfg(item.id);displayServer(item);return;}}catch(e){}
+  if(configs.length&&configs[0].items?.length)selectServer(configs[0].items[0]);
+}
+/* ══ HOTSPOT ══ */
+let hsPoll=null;
+function isHsActive(){for(const k of['DtGetStatusHotSpotService','DtHotspotStatus','DtGetHotspotStatus']){try{const v=window[k]?.execute?.();if(v!=null){const s=String(v).toUpperCase().trim();return['RUNNING','ACTIVE','LIGADO','ON','TRUE','1'].includes(s);}}catch(e){}}return false;}
+function refreshHotspot(){
+  const on=isHsActive();
+  const dot=document.getElementById('hsDot');const txt=document.getElementById('hsStatusTxt');const prt=document.getElementById('hsPortTxt');const btn=document.getElementById('hsToggleBtn');
+  if(!dot)return;
+  dot.style.background = on ? '#0a7a3d' : '#ccc';
+  txt.textContent = on ? 'Ligado' : 'Desligado';
+  try{const p=String(window?.DtGetHotspotPort?.execute?.()||'');if(on&&p&&p!=='N/A'){prt.textContent='Porta: '+p;prt.style.display='block';}else prt.style.display='none';}catch(e){}
+  btn.textContent = on ? '⏹ Desligar' : '▶ Ligar';
+  btn.className = 'manga-btn ' + (on ? 'manga-btn-danger' : 'manga-btn-primary');
+}
+function toggleHotspot(){
+  if(isHsActive()){for(const k of['DtStopHotSpotService','DtHotspotOff']){try{if(window[k]?.execute){window[k].execute();break;}}catch(e){}}log('[HOTSPOT] Desligando…','#a8720a');}
+  else{for(const k of['DtStartHotSpotService','DtHotspotOn']){try{if(window[k]?.execute){window[k].execute();break;}}catch(e){}}log('[HOTSPOT] Ligando…','#a8720a');}
+  setTimeout(refreshHotspot,700);
+}
+window.DtHotspotStateListener=()=>refreshHotspot();
+/* ══ MODO AVIÃO ══ */
+let airplaneRunning=false;
+function doAirplane(){
+  if(airplaneRunning)return; airplaneRunning=true;
+  const lbl=document.getElementById('airplaneLbl');if(lbl)lbl.textContent='…';
+  log('[AVIÃO] Parando VPN…','#a8720a'); B.exec('DtExecuteVpnStop');
+  setTimeout(()=>{
+    log('[AVIÃO] Modo avião ON…','#a8720a');try{window?.DtAirplaneActivate?.execute();}catch(e){}
+    setTimeout(()=>{
+      log('[AVIÃO] Modo avião OFF…','#a8720a');try{window?.DtAirplaneDeactivate?.execute();}catch(e){}
+      setTimeout(()=>{log('[AVIÃO] Reconectando…','#a8720a');B.exec('DtExecuteVpnStart');airplaneRunning=false;if(lbl)lbl.textContent='Avião';},2000);
+    },8000);
+  },1000);
+}
+function resetStats(){
+  document.getElementById('serverPingText').textContent='PING: — • Toque pra escolher';
+  document.getElementById('downVal').textContent='0.0 MB/S';
+  document.getElementById('upVal').textContent='0.0 MB/S';
+}
+async function fetchWithTimeout(url,opts={},timeoutMs=6000){
+  const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),timeoutMs);
+  try{ return await fetch(url,{...opts,signal:ctrl.signal,cache:'no-store'}); } finally{ clearTimeout(t); }
+}
+let lastPing=null;
+function updatePingText(){
+  const desc = (findItem(selectedId)||{}).description || (findItem(selectedId)||{}).mode || 'ULTRA SPEED';
+  document.getElementById('serverPingText').textContent = 'PING: '+(lastPing!=null?lastPing+'ms':'—')+' • '+desc;
+}
+
+let statsPollIpAlways=null;
+function refreshIp(){
+  if(vpnConnected) return; // enquanto conectado, a interface ativa é o túnel (ex: 172.16.0.1) — não sobrescreve o IP real
+  try{
+    const ip = window.DtGetLocalIP.execute();
+    if(ip) document.getElementById('ipDisplay').textContent = ip;
+  }catch(e){}
+}
+function startIpPolling(){
+  refreshIp();
+  if(statsPollIpAlways) clearInterval(statsPollIpAlways);
+  statsPollIpAlways=setInterval(refreshIp,5000);
+}
+async function refreshPing(){
+  try{
+    const t0=performance.now();
+    await fetchWithTimeout('https://speed.cloudflare.com/__down?bytes=0',{},4000);
+    lastPing=Math.round(performance.now()-t0);
+  }catch(e){ lastPing=null; }
+  updatePingText();
+}
+async function refreshSpeed(){
+  try{
+    const bytesDown=1500000; const t0=performance.now();
+    const rd=await fetchWithTimeout('https://speed.cloudflare.com/__down?bytes='+bytesDown,{},9000);
+    await rd.arrayBuffer();
+    const tDown=(performance.now()-t0)/1000;
+    document.getElementById('downVal').textContent=(bytesDown/1048576/Math.max(tDown,0.05)).toFixed(1)+' MB/S';
+  }catch(e){ document.getElementById('downVal').textContent='0.0 MB/S'; }
+  try{
+    const bytesUp=800000; const blob=new Blob([new Uint8Array(bytesUp)]);
+    const t0=performance.now();
+    await fetchWithTimeout('https://speed.cloudflare.com/__up',{method:'POST',body:blob},9000);
+    const tUp=(performance.now()-t0)/1000;
+    document.getElementById('upVal').textContent=(bytesUp/1048576/Math.max(tUp,0.05)).toFixed(1)+' MB/S';
+  }catch(e){ document.getElementById('upVal').textContent='0.0 MB/S'; }
+}
+function startStatsPolling(){
+  stopStatsPolling();
+  refreshPing(); refreshSpeed();
+  statsPollPing=setInterval(refreshPing,4000);
+  statsPollSpeed=setInterval(refreshSpeed,15000);
+}
+function stopStatsPolling(){
+  [statsPollPing,statsPollSpeed].forEach(x=>{if(x)clearInterval(x);});
+  statsPollPing=statsPollSpeed=null;
+}
+
+function doUpdate(){log('Atualizando configs…','#a8720a');B.exec('DtStartAppUpdate');}
+function togglePwd(){const i=document.getElementById('password');const ic=document.getElementById('eyeIcon');if(i.type==='password'){i.type='text';ic.className='fa-solid fa-eye-slash';}else{i.type='password';ic.className='fa-solid fa-eye';}}
+function openExtLink(url){for(const k of['DtStartWebViewActivity','DtOpenExternalUrl']){try{if(window[k]?.execute){window[k].execute(url);return;}}catch(e){}}window.open(url,'_blank');}
+function menuAct(a){
+  ({update:()=>doUpdate(),speed:()=>openSpeedModal(),painel:()=>openExtLink('https://celestrox.com/ff0d5d22-7f7f-4e81-9158-1638033cd1e1/store/customer'),apn:()=>B.exec('DtStartApnActivity'),hotspot:()=>openHotspotModal(),airplane:()=>doAirplane(),battery:()=>B.exec('DtIgnoreBatteryOptimizations'),check:()=>openCheckUserModal(),clean:()=>B.exec('DtCleanApp')})[a]?.();
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('username').value=B.clean(B.get('DtUsername'));
+  document.getElementById('password').value=B.clean(B.get('DtPassword'));
+  document.getElementById('uuid').value=B.clean(B.get('DtUuid'));
+  document.getElementById('username').oninput=e=>B.set('DtUsername',e.target.value);
+  document.getElementById('password').oninput=e=>B.set('DtPassword',e.target.value);
+  document.getElementById('uuid').oninput=e=>B.set('DtUuid',e.target.value);
+  loadConfigs(); loadDefault(); loadAutoConnect(); loadClearMarker();
+  startIpPolling();
+  const init=B.exec('DtGetVpnState','DISCONNECTED');
+  renderState(init||'DISCONNECTED');
+  try{const err=B.json('DtGetLastConnectionError',{});if(err&&err.code)window.dtConnectionErrorListener(err);}catch(e){}
+  maybeAutoConnect(init||'DISCONNECTED');
+  let last=init;
+  setInterval(()=>{try{const s=B.exec('DtGetVpnState','DISCONNECTED');if(s&&s!==last){last=s;renderState(s);}}catch(e){}},1000);
+  setInterval(pullLogs,2000);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Como adicionar um novo layout</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .instructions {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .instructions h1 {
+      font-size: 2rem;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .instructions .subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+    }
+
+    .step {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+      border-radius: 50%;
+      font-size: 0.95rem;
+      margin-bottom: 14px;
+    }
+
+    .step h2 {
+      font-size: 1.15rem;
+      margin-bottom: 10px;
+    }
+
+    .step p, .step li {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .step ul {
+      margin: 12px 0 0 20px;
+    }
+
+    .step code {
+      background: rgba(255,255,255,0.08);
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 0.88em;
+      color: #c4b5fd;
+    }
+
+    .code-block {
+      background: #121218;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 14px;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.82rem;
+      color: #d4d4d8;
+      line-height: 1.5;
+      white-space: pre;
+    }
+
+    .back-btn {
+      display: inline-block;
+      margin-top: 30px;
+      background: var(--accent);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .back-btn:hover {
+      background: #6a4de0;
+    }
+
+    .center {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="background"></div>
+
+  <div class="instructions">
+    <h1>Como adicionar um novo layout</h1>
+    <p class="subtitle">Siga os passos abaixo para colocar seu HTML na galeria</p>
+
+    <div class="step">
+      <div class="step-number">1</div>
+      <h2>Coloque o arquivo na pasta layouts</h2>
+      <p>Envie o seu arquivo <code>.html</code> para a pasta <code>layouts/</code> do projeto.</p>
+      <ul>
+        <li>No <strong>Netlify</strong>: faça um novo deploy arrastando a pasta atualizada</li>
+        <li>No <strong>GitHub</strong>: entre na pasta layouts → Add file → Upload files</li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <div class="step-number">2</div>
+      <h2>Edite o arquivo index.html</h2>
+      <p>Abra o <code>index.html</code> e procure a seção dos cards. Adicione um novo card copiando o modelo abaixo:</p>
+      
+      <div class="code-block">&lt;a href="layouts/SEU-ARQUIVO.html" class="card" target="_blank"&gt;
+  &lt;div class="card-preview"&gt;
+    &lt;div class="preview-placeholder"&gt;Layout&lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="card-content"&gt;
+    &lt;h2&gt;Nome do Layout&lt;/h2&gt;
+    &lt;p&gt;Descrição curta do layout.&lt;/p&gt;
+    &lt;span class="badge"&gt;HTML + CSS&lt;/span&gt;
+  &lt;/div&gt;
+&lt;/a&gt;</div>
+    </div>
+
+    <div class="step">
+      <div class="step-number">3</div>
+      <h2>Substitua as informações</h2>
+      <p>Troque:</p>
+      <ul>
+        <li><code>SEU-ARQUIVO.html</code> → nome real do seu arquivo</li>
+        <li><code>Nome do Layout</code> → título que aparece no card</li>
+        <li><code>Descrição curta...</code> → uma frase explicando o layout</li>
+        <li><code>HTML + CSS</code> → o que você quiser (badge)</li>
+      </ul>
+    </div>
+
+    <div class="step">
+      <div class="step-number">4</div>
+      <h2>Faça o deploy de novo</h2>
+      <p>Salve as alterações e publique novamente no Netlify ou faça push no GitHub. Pronto!</p>
+    </div>
+
+    <div class="center">
+      <a href="index.html" class="back-btn">← Voltar para a galeria</a>
+    </div>
+  </div>
+
+</body>
+</html>

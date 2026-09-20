@@ -14,30 +14,25 @@
       margin: 0 auto;
       padding: 40px 24px 80px;
     }
-
     .upload-container h1 {
       font-size: 2rem;
       text-align: center;
       margin-bottom: 8px;
     }
-
     .upload-container .subtitle {
       text-align: center;
       color: var(--text-muted);
       margin-bottom: 40px;
     }
-
     .form-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 28px;
     }
-
     .form-group {
       margin-bottom: 20px;
     }
-
     .form-group label {
       display: block;
       font-size: 0.9rem;
@@ -45,7 +40,6 @@
       margin-bottom: 8px;
       color: var(--text);
     }
-
     .form-group input[type="text"],
     .form-group input[type="password"],
     .form-group textarea {
@@ -60,19 +54,16 @@
       outline: none;
       transition: border-color 0.2s;
     }
-
     .form-group input:focus,
     .form-group textarea:focus {
       border-color: var(--accent);
     }
-
     .form-group textarea {
-      min-height: 180px;
+      min-height: 160px;
       resize: vertical;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.85rem;
     }
-
     .form-group input[type="file"] {
       width: 100%;
       padding: 12px;
@@ -82,7 +73,14 @@
       color: var(--text-muted);
       cursor: pointer;
     }
-
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 500px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
     .btn {
       width: 100%;
       background: var(--accent);
@@ -96,16 +94,8 @@
       transition: background 0.2s;
       margin-top: 8px;
     }
-
-    .btn:hover {
-      background: #6a4de0;
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
+    .btn:hover { background: #6a4de0; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .message {
       margin-top: 20px;
       padding: 14px 16px;
@@ -113,21 +103,18 @@
       font-size: 0.9rem;
       display: none;
     }
-
     .message.success {
       background: rgba(34, 197, 94, 0.15);
       border: 1px solid rgba(34, 197, 94, 0.3);
       color: #86efac;
       display: block;
     }
-
     .message.error {
       background: rgba(239, 68, 68, 0.15);
       border: 1px solid rgba(239, 68, 68, 0.3);
       color: #fca5a5;
       display: block;
     }
-
     .back-link {
       display: block;
       text-align: center;
@@ -136,11 +123,7 @@
       text-decoration: none;
       font-size: 0.95rem;
     }
-
-    .back-link:hover {
-      color: var(--accent);
-    }
-
+    .back-link:hover { color: var(--accent); }
     .hint {
       font-size: 0.8rem;
       color: var(--text-muted);
@@ -153,19 +136,35 @@
 
   <div class="upload-container">
     <h1>Upload de Layout</h1>
-    <p class="subtitle">Envie seu arquivo HTML e ele será salvo automaticamente no GitHub</p>
+    <p class="subtitle">Envie o HTML e o card é criado automaticamente na galeria</p>
 
     <div class="form-card">
       <form id="uploadForm">
         <div class="form-group">
           <label for="filename">Nome do arquivo</label>
           <input type="text" id="filename" placeholder="ex: minha-landing.html" required>
-          <p class="hint">Só letras, números, hífen e underline. O .html é adicionado automaticamente se faltar.</p>
+          <p class="hint">Só letras, números, hífen e underline.</p>
         </div>
 
         <div class="form-group">
           <label for="file">Ou escolha um arquivo do computador</label>
           <input type="file" id="file" accept=".html,text/html">
+        </div>
+
+        <div class="form-group">
+          <label for="title">Título do card</label>
+          <input type="text" id="title" placeholder="ex: DSPEEDV5" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="description">Descrição</label>
+            <input type="text" id="description" placeholder="Descrição curta">
+          </div>
+          <div class="form-group">
+            <label for="badge">Badge</label>
+            <input type="text" id="badge" placeholder="ex: App UI" value="HTML">
+          </div>
         </div>
 
         <div class="form-group">
@@ -179,7 +178,7 @@
           <p class="hint">Senha padrão: <strong>galeria123</strong></p>
         </div>
 
-        <button type="submit" class="btn" id="submitBtn">Enviar para o GitHub</button>
+        <button type="submit" class="btn" id="submitBtn">Enviar e criar card</button>
       </form>
 
       <div id="message" class="message"></div>
@@ -193,15 +192,17 @@
     const fileInput = document.getElementById("file");
     const contentArea = document.getElementById("content");
     const filenameInput = document.getElementById("filename");
+    const titleInput = document.getElementById("title");
     const messageEl = document.getElementById("message");
     const submitBtn = document.getElementById("submitBtn");
 
-    // When user selects a file, fill the textarea and filename
     fileInput.addEventListener("change", async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
       filenameInput.value = file.name;
+      if (!titleInput.value) {
+        titleInput.value = file.name.replace(/\.html$/i, "");
+      }
       const text = await file.text();
       contentArea.value = text;
     });
@@ -211,10 +212,13 @@
 
       const filename = filenameInput.value.trim();
       const content = contentArea.value;
+      const title = titleInput.value.trim();
+      const description = document.getElementById("description").value.trim();
+      const badge = document.getElementById("badge").value.trim();
       const password = document.getElementById("password").value;
 
-      if (!filename || !content) {
-        showMessage("Preencha o nome e o conteúdo do arquivo.", "error");
+      if (!filename || !content || !title) {
+        showMessage("Preencha nome do arquivo, título e conteúdo.", "error");
         return;
       }
 
@@ -226,22 +230,23 @@
         const res = await fetch("/.netlify/functions/upload-html", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename, content, password })
+          body: JSON.stringify({ filename, content, title, description, badge, password })
         });
 
         const data = await res.json();
 
         if (res.ok && data.success) {
-          showMessage(data.message + " O site vai atualizar em alguns segundos.", "success");
+          showMessage(data.message, "success");
           form.reset();
+          document.getElementById("badge").value = "HTML";
         } else {
-          showMessage(data.error || "Erro ao enviar", "error");
+          showMessage(data.error || data.details || "Erro ao enviar", "error");
         }
       } catch (err) {
         showMessage("Erro de conexão: " + err.message, "error");
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = "Enviar para o GitHub";
+        submitBtn.textContent = "Enviar e criar card";
       }
     });
 

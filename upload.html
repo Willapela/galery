@@ -227,7 +227,7 @@
       messageEl.style.display = "none";
 
       try {
-        const res = await fetch("/.netlify/functions/upload-html", {
+        const res = await fetch("/api/upload-html", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ filename, content, title, description, badge, password })

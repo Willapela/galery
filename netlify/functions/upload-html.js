@@ -1,5 +1,4 @@
 exports.handler = async function(event, context) {
-  // Only allow POST
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
@@ -10,9 +9,9 @@ exports.handler = async function(event, context) {
 
   try {
     const body = JSON.parse(event.body);
-    const { filename, content, password } = body;
+    const { filename, content, title, description, badge, password } = body;
 
-    // Simple password protection
+    // Password check
     const correctPassword = process.env.UPLOAD_PASSWORD || "galeria123";
     if (password !== correctPassword) {
       return {
@@ -35,10 +34,7 @@ exports.handler = async function(event, context) {
       .replace(/[^a-zA-Z0-9-_\.]/g, "-")
       .replace(/\.+/g, ".")
       .toLowerCase();
-    
-    if (!cleanName.endsWith(".html")) {
-      cleanName += ".html";
-    }
+    if (!cleanName.endsWith(".html")) cleanName += ".html";
 
     const token = process.env.GITHUB_TOKEN;
     if (!token) {
@@ -52,55 +48,153 @@ exports.handler = async function(event, context) {
     const owner = "Willapela";
     const repo = "galery";
     const branch = "main";
-    const path = `layouts/${cleanName}`;
+    const filePath = `layouts/${cleanName}`;
 
-    // Get current file SHA if exists (needed for update)
-    let sha = null;
-    const getRes = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "User-Agent": "Netlify-Upload-Function"
-        }
-      }
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "User-Agent": "Netlify-Upload-Function"
+    };
+
+    // === 1. Upload the HTML file ===
+    let fileSha = null;
+    const getFile = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${branch}`,
+      { headers }
     );
-
-    if (getRes.ok) {
-      const data = await getRes.json();
-      sha = data.sha;
+    if (getFile.ok) {
+      const data = await getFile.json();
+      fileSha = data.sha;
     }
 
-    // Create or update the file
-    const putRes = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+    const putFile = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
       {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "Content-Type": "application/json",
-          "User-Agent": "Netlify-Upload-Function"
-        },
+        headers,
         body: JSON.stringify({
           message: `Adiciona layout: ${cleanName}`,
           content: Buffer.from(content, "utf-8").toString("base64"),
-          branch: branch,
-          ...(sha ? { sha } : {})
+          branch,
+          ...(fileSha ? { sha: fileSha } : {})
         })
       }
     );
 
-    const putData = await putRes.json();
-
-    if (!putRes.ok) {
+    const putFileData = await putFile.json();
+    if (!putFile.ok) {
       return {
-        statusCode: putRes.status,
+        statusCode: putFile.status,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          error: "Erro ao enviar para o GitHub",
-          details: putData.message || putData
+          error: "Erro ao enviar arquivo para o GitHub",
+          details: putFileData.message || putFileData
+        })
+      };
+    }
+
+    // === 2. Update index.html to add the card ===
+    const cardTitle = (title || cleanName.replace(".html", "")).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const cardDesc = (description || "Layout enviado pelo site").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const cardBadge = (badge || "HTML").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const newCard = `
+      <!-- Card ${cardTitle} -->
+      <a href="layouts/${cleanName}" class="card" target="_blank">
+        <div class="card-preview">
+          <div class="preview-placeholder">${cardTitle.substring(0, 14)}</div>
+        </div>
+        <div class="card-content">
+          <h2>${cardTitle}</h2>
+          <p>${cardDesc}</p>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <span class="badge">${cardBadge}</span>
+            <a href="layouts/${cleanName}" download="${cleanName}" onclick="event.stopPropagation()" style="font-size:0.75rem; color:#b8a4ff; text-decoration:none;">⬇ Baixar</a>
+          </div>
+        </div>
+      </a>
+`;
+
+    // Get current index.html
+    const getIndex = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/index.html?ref=${branch}`,
+      { headers }
+    );
+
+    if (!getIndex.ok) {
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          success: true,
+          message: `Arquivo ${cleanName} enviado! (não foi possível atualizar o index automaticamente)`,
+          path: filePath
+        })
+      };
+    }
+
+    const indexData = await getIndex.json();
+    let indexContent = Buffer.from(indexData.content, "base64").toString("utf-8");
+
+    // Insert the new card before the "Adicionar novo" card
+    const markers = [
+      '<!-- Card - Adicionar novo -->',
+      '<!-- Card 4 - Adicionar novo -->',
+      'href="upload.html" class="card card-empty"'
+    ];
+
+    let updatedIndex = indexContent;
+    let inserted = false;
+
+    for (const marker of markers) {
+      if (indexContent.includes(marker)) {
+        if (marker.startsWith("href=")) {
+          const idx = indexContent.indexOf(marker);
+          const start = indexContent.lastIndexOf("<a ", idx);
+          if (start !== -1) {
+            updatedIndex = indexContent.slice(0, start) + newCard + "\n      " + indexContent.slice(start);
+            inserted = true;
+            break;
+          }
+        } else {
+          updatedIndex = indexContent.replace(marker, newCard + "\n" + marker);
+          inserted = true;
+          break;
+        }
+      }
+    }
+
+    if (!inserted) {
+      updatedIndex = indexContent.replace("</section>", newCard + "\n    </section>");
+    }
+
+    // Commit the updated index.html
+    const putIndex = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/index.html`,
+      {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          message: `Adiciona card: ${cardTitle}`,
+          content: Buffer.from(updatedIndex, "utf-8").toString("base64"),
+          branch,
+          sha: indexData.sha
+        })
+      }
+    );
+
+    const putIndexData = await putIndex.json();
+
+    if (!putIndex.ok) {
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          success: true,
+          message: `Arquivo ${cleanName} enviado, mas houve erro ao criar o card automaticamente.`,
+          path: filePath,
+          details: putIndexData.message
         })
       };
     }
@@ -110,9 +204,9 @@ exports.handler = async function(event, context) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         success: true,
-        message: `Arquivo ${cleanName} enviado com sucesso para o GitHub!`,
-        path: path,
-        url: putData.content?.html_url || `https://github.com/${owner}/${repo}/blob/${branch}/${path}`
+        message: `Layout "${cardTitle}" enviado e card criado com sucesso! O site atualiza em alguns segundos.`,
+        path: filePath,
+        url: putFileData.content && putFileData.content.html_url
       })
     };
 

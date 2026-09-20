@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Névoa — VPN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1D1512;
+  --bg-deep:#120C0A;
+  --surface:rgba(255,238,226,.05);
+  --surface-hi:rgba(255,238,226,.085);
+  --line:rgba(255,232,216,.12);
+  --ink:#F4ECE5;
+  --muted:#9E877A;
+  --signal:#E9A166;
+  --warm:#B98A6B;
+  --accent:var(--muted);
+  --r:18px;
+  --display:"Bricolage Grotesque","Trebuchet MS",Verdana,sans-serif;
+  --ui:"Instrument Sans","Segoe UI",Helvetica,Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root:not([data-theme="light"]){color-scheme:dark;}
+*,*::before,*::after{box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%;}
+body{
+  margin:0;min-height:100vh;background:var(--bg);color:var(--ink);
+  font-family:var(--ui);font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;position:relative;overflow-x:hidden;
+}
+.aura{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.aura i{position:absolute;display:block;border-radius:50%;filter:blur(90px);opacity:.5;transition:background 1.2s ease,opacity 1.2s ease;}
+.aura i:nth-child(1){width:60vmax;height:60vmax;left:-18vmax;top:-22vmax;background:radial-gradient(circle,var(--accent) 0%,transparent 68%);opacity:.20;animation:drift1 34s ease-in-out infinite;}
+.aura i:nth-child(2){width:48vmax;height:48vmax;right:-14vmax;bottom:-16vmax;background:radial-gradient(circle,#6E3A52 0%,transparent 70%);opacity:.34;animation:drift2 42s ease-in-out infinite;}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.22;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");}
+@keyframes drift1{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(8vmax,6vmax,0) scale(1.14)}}
+@keyframes drift2{0%,100%{transform:translate3d(0,0,0) scale(1.08)}50%{transform:translate3d(-7vmax,-5vmax,0) scale(.94)}}
+.shell{position:relative;z-index:2;max-width:1060px;margin:0 auto;padding:28px 22px 40px;}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:clamp(28px,6vw,64px);}
+.mark{display:flex;align-items:baseline;gap:10px;font-family:var(--display);font-weight:600;font-size:21px;letter-spacing:-.02em;}
+.mark span{font-family:var(--ui);font-size:12.5px;font-weight:500;color:var(--muted);letter-spacing:.01em;}
+.top-actions{display:flex;align-items:center;gap:8px;}
+.icon-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:grid;place-items:center;cursor:pointer;transition:background .18s;}
+.icon-btn:hover{background:var(--surface-hi);color:var(--ink);}
+.icon-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.acct{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--muted);border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px 7px 11px;}
+.acct b{width:7px;height:7px;border-radius:50%;background:var(--accent);transition:background .5s ease;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);}
+.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(26px,4vw,56px);align-items:start;}
+.stage{display:flex;flex-direction:column;align-items:center;text-align:center;}
+.dialwrap{position:relative;width:min(300px,72vw);aspect-ratio:1;display:grid;place-items:center;margin-bottom:34px;}
+.wave{position:absolute;inset:0;border-radius:50%;border:1px solid var(--accent);opacity:0;pointer-events:none;}
+body.on .wave{animation:wave 3.6s cubic-bezier(.2,.6,.3,1) infinite;}
+body.on .wave:nth-of-type(2){animation-delay:1.2s;}
+body.on .wave:nth-of-type(3){animation-delay:2.4s;}
+@keyframes wave{0%{transform:scale(.72);opacity:.5}100%{transform:scale(1.28);opacity:0}}
+.ring{position:absolute;inset:-16px;border-radius:50%;opacity:0;transition:opacity .4s ease;
+  background:conic-gradient(from 0turn,transparent 0 52%,var(--accent) 82%,transparent 100%);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 3px));}
+body.busy .ring{opacity:1;animation:spin 1.05s linear infinite;}
+@keyframes spin{to{transform:rotate(1turn)}}
+.dial{
+  position:relative;width:100%;height:100%;border-radius:50%;cursor:pointer;
+  border:1px solid var(--line);
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--accent) 16%,transparent) 0%,transparent 62%),linear-gradient(180deg,rgba(226,246,244,.07),rgba(226,246,244,.02));
+  color:var(--ink);font-family:var(--display);font-size:22px;font-weight:500;letter-spacing:-.01em;
+  display:grid;place-items:center;
+  transition:transform .35s cubic-bezier(.34,1.4,.5,1),box-shadow .8s ease,border-color .6s ease,background .8s ease;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 24px 60px -30px #000;
+}
+.dial:hover{transform:scale(1.015);}
+.dial:active{transform:scale(.975);}
+body.on .dial{border-color:color-mix(in srgb,var(--accent) 45%,transparent);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 70px -12px color-mix(in srgb,var(--accent) 55%,transparent),0 24px 60px -30px #000;
+  animation:breathe 5.5s ease-in-out infinite;}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.022)}}
+.dial .glyph{display:block;width:34px;height:34px;margin:0 auto 14px;stroke:var(--accent);fill:none;stroke-width:1.6;stroke-linecap:round;transition:stroke .6s ease;}
+.dial .label{display:block;}
+.status{font-family:var(--display);font-size:clamp(34px,7vw,50px);font-weight:500;letter-spacing:-.035em;line-height:1.02;margin:0 0 10px;}
+.sub{margin:0;color:var(--muted);font-size:14.5px;}
+.sub .ip{color:var(--ink);font-variant-numeric:tabular-nums;}
+.panel{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden;backdrop-filter:blur(6px);}
+.panel + .panel{margin-top:16px;}
+.pick{display:flex;width:100%;align-items:center;gap:14px;padding:16px 18px;background:none;border:0;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .18s ease;}
+.pick:hover{background:var(--surface-hi);}
+.pick .txt{flex:1;min-width:0;}
+.pick .txt .kicker{display:block;color:var(--muted);font-size:12.5px;margin-bottom:2px;}
+.pick .txt b{display:block;font-family:var(--display);font-size:18px;font-weight:600;letter-spacing:-.015em;}
+.pick .txt .city{display:block;color:var(--muted);font-size:13px;}
+.pick .chev{width:16px;height:16px;flex:none;stroke:var(--muted);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+.row{display:flex;align-items:center;gap:14px;padding:15px 18px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s;}
+.row:last-child{border-bottom:0;}
+.row:hover{background:var(--surface-hi);}
+.row .txt{flex:1;}
+.row .txt b{display:block;font-weight:500;font-size:14.5px;}
+.row .txt small{color:var(--muted);font-size:12.8px;line-height:1.45;display:block;}
+.row .val{color:var(--muted);font-size:13.5px;}
+.sw{position:relative;width:44px;height:25px;border-radius:999px;border:1px solid var(--line);background:rgba(226,246,244,.06);cursor:pointer;flex:none;transition:background .25s ease,border-color .25s ease;}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:var(--muted);transition:transform .28s cubic-bezier(.34,1.3,.5,1),background .25s ease;}
+.sw[aria-checked="true"]{background:color-mix(in srgb,var(--signal) 26%,transparent);border-color:color-mix(in srgb,var(--signal) 45%,transparent);}
+.sw[aria-checked="true"]::after{transform:translateX(19px);background:var(--signal);}
+.session{margin-top:clamp(30px,5vw,50px);border-top:1px solid var(--line);padding-top:22px;
+  display:grid;grid-template-columns:auto auto auto minmax(180px,1fr);
+  gap:clamp(20px,3.6vw,46px);align-items:end;}
+.stat b{display:block;font-family:var(--display);font-size:clamp(22px,3.4vw,29px);font-weight:500;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1;}
+.stat small{color:var(--muted);font-size:12.8px;}
+.stat.dim b{color:var(--muted);}
+.flow{min-width:0;display:flex;flex-direction:column;gap:7px;}
+.flowhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.flowhead b{font-family:var(--display);font-size:15.5px;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.flowhead small{color:var(--muted);font-size:12.8px;}
+.flow.dim .flowhead b{color:var(--muted);}
+.spark{display:block;width:100%;height:58px;overflow:visible;}
+.spark .edge{stroke:var(--accent);transition:stroke .7s ease;}
+.spark .fill{transition:opacity .7s ease;}
+.flow.dim .spark .fill{opacity:0;}
+
+/* Modals */
+.scrim{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:20px;
+  padding-top:calc(20px + env(safe-area-inset-top,0px));padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));
+  background:color-mix(in srgb,var(--bg-deep) 74%,transparent);backdrop-filter:blur(7px);
+  opacity:0;pointer-events:none;transition:opacity .22s ease;}
+.scrim.open{opacity:1;pointer-events:auto;}
+.modal{width:min(440px,100%);max-height:85vh;display:flex;flex-direction:column;
+  border:1px solid var(--line);border-radius:22px;background:var(--bg);
+  box-shadow:0 40px 90px -30px #000,inset 0 1px 0 rgba(255,255,255,.06);
+  transform:translateY(10px) scale(.985);opacity:0;
+  transition:transform .28s cubic-bezier(.24,1.05,.4,1),opacity .24s ease;overflow:hidden;}
+.scrim.open .modal{transform:none;opacity:1;}
+.mhead{display:flex;align-items:flex-start;gap:14px;padding:20px 20px 16px;border-bottom:1px solid var(--line);}
+.mhead h2{font-family:var(--display);font-size:20px;font-weight:600;letter-spacing:-.02em;margin:0 0 2px;}
+.mhead p{margin:0;color:var(--muted);font-size:13px;}
+.x{margin-left:auto;flex:none;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;
+  border:1px solid var(--line);background:var(--surface);cursor:pointer;color:var(--muted);}
+.x:hover{background:var(--surface-hi);}
+.mbody{overflow-y:auto;overscroll-behavior:contain;padding:8px 0;flex:1;}
+.mfoot{padding:12px 20px 20px;border-top:1px solid var(--line);}
+.field{display:flex;align-items:center;gap:12px;margin:0 20px 10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);}
+.field input{flex:1;border:0;background:transparent;outline:none;color:var(--ink);font:inherit;font-size:14.5px;}
+.field input::placeholder{color:var(--muted);}
+.field.hidden{display:none;}
+.field svg{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:1.8;flex-shrink:0;}
+.btn-main{width:100%;padding:14px;border:0;border-radius:12px;background:var(--signal);color:#1D1512;font-weight:600;font-size:14.5px;cursor:pointer;font-family:var(--ui);}
+.btn-main:active{opacity:.9;}
+.srv{display:flex;width:100%;align-items:center;gap:13px;padding:13px 20px;background:none;border:0;border-bottom:1px solid var(--line);
+  color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .18s;position:relative;}
+.srv:last-of-type{border-bottom:0;}
+.srv:hover{background:var(--surface-hi);}
+.srv.active::before{content:"";position:absolute;left:0;top:14%;bottom:14%;width:2px;background:var(--accent);border-radius:0 2px 2px 0;}
+.srv .icon{width:36px;height:36px;border-radius:10px;background:var(--surface);display:grid;place-items:center;font-size:16px;overflow:hidden;flex-shrink:0;border:1px solid var(--line);}
+.srv .icon img{width:100%;height:100%;object-fit:cover;}
+.srv .place{flex:1;min-width:0;}
+.srv .place b{display:block;font-weight:500;font-size:14.5px;}
+.srv .place small{color:var(--muted);font-size:12.8px;}
+.cat{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:12px 20px 6px;}
+.menu-item{display:flex;align-items:center;gap:13px;padding:13px 20px;cursor:pointer;transition:background .15s;border:0;background:none;width:100%;color:var(--ink);font:inherit;text-align:left;}
+.menu-item:hover{background:var(--surface-hi);}
+.menu-item .mi{width:36px;height:36px;border-radius:10px;background:var(--surface);display:grid;place-items:center;border:1px solid var(--line);flex-shrink:0;}
+.menu-item .mi svg{width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:1.8;}
+.menu-item .mt{flex:1;}
+.menu-item .mt b{display:block;font-weight:500;font-size:14px;}
+.menu-item .mt small{color:var(--muted);font-size:12.5px;}
+.menu-item.danger .mt b{color:#E07070;}
+.log-line{display:block;font-family:ui-monospace,monospace;font-size:12px;line-height:1.7;color:var(--muted);padding:0 20px;}
+.profile-row{display:flex;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--line);}
+.profile-row:last-child{border-bottom:0;}
+.profile-row .k{color:var(--muted);font-size:13.5px;}
+.profile-row .v{font-weight:500;font-size:14px;}
+.empty{text-align:center;color:var(--muted);font-size:13.5px;padding:28px 20px;}
+.hs-row{display:flex;align-items:center;gap:12px;margin:0 20px 12px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);}
+.hs-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;}
+.hs-dot.on{background:var(--signal);box-shadow:0 0 8px color-mix(in srgb,var(--signal) 50%,transparent);}
+.hidden{display:none!important;}
+
+@media (max-width:760px){
+  .grid{grid-template-columns:1fr;}
+  .shell{padding:20px 16px 34px;}
+  .stage{margin-bottom:6px;}
+  .session{grid-template-columns:repeat(3,1fr);gap:20px;}
+  .flow{grid-column:1/-1;margin-top:4px;}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition-duration:.01ms!important;}
+}
+</style>
+</head>
+<body>
+<div class="aura" aria-hidden="true"><i></i><i></i></div>
+<div class="grain" aria-hidden="true"></div>
+
+<div class="shell">
+  <header class="top">
+    <div class="mark">névoa <span>tráfego privado</span></div>
+    <div class="top-actions">
+      <div class="acct"><b id="statusDot"></b> <span id="statusAcct">Desconectado</span></div>
+      <button class="icon-btn" onclick="openMenu()" title="Menu">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="stage">
+      <div class="dialwrap">
+        <span class="wave"></span><span class="wave"></span><span class="wave"></span>
+        <span class="ring"></span>
+        <button class="dial" id="dial" onclick="handleConnect()" aria-pressed="false">
+          <span>
+            <svg class="glyph" viewBox="0 0 32 32"><path d="M16 26c5-2.4 7.5-6.2 7.5-11.4V8.6L16 5.8 8.5 8.6v6c0 5.2 2.5 9 7.5 11.4Z"/><path d="M13 15.6l2.2 2.4 4-5"/></svg>
+            <span class="label" id="dialLabel">Conectar</span>
+          </span>
+        </button>
+      </div>
+      <h1 class="status" id="status">Desprotegido</h1>
+      <p class="sub">Seu endereço aparece como <span class="ip" id="ip">—.—.—.—</span></p>
+    </section>
+
+    <section>
+      <div class="panel">
+        <button class="pick" id="pick" onclick="openServers()">
+          <span class="txt">
+            <span class="kicker">Saída</span>
+            <b id="serverName">Selecionar servidor</b>
+            <span class="city" id="serverDesc">Toque para escolher</span>
+          </span>
+          <span class="ms" id="serverPing" style="color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;">-- ms</span>
+          <svg class="chev" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></svg>
+        </button>
+      </div>
+      <div class="panel">
+        <div class="row" onclick="openLogs()">
+          <span class="txt"><b>Registros</b><small>Ver logs de conexão.</small></span>
+          <span class="val">→</span>
+        </div>
+        <div class="row" onclick="openProfile()">
+          <span class="txt"><b>Perfil</b><small>Consultar conta e vencimento.</small></span>
+          <span class="val">→</span>
+        </div>
+        <div class="row" onclick="openSpeed()">
+          <span class="txt"><b>Speed Test</b><small>Testar velocidade da conexão.</small></span>
+          <span class="val">→</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="session">
+    <div class="stat dim" id="s1"><b id="clock">00:00:00</b><small>Tempo de sessão</small></div>
+    <div class="stat dim" id="s2"><b id="statDown">0.0</b><small>Download MB/s</small></div>
+    <div class="stat dim" id="s3"><b id="statUp">0.0</b><small>Upload MB/s</small></div>
+    <div class="flow dim" id="flow">
+      <div class="flowhead"><b id="rate">0,0 MB/s</b><small>Tráfego agora</small></div>
+      <svg class="spark" viewBox="0 0 240 58" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="fadeDown" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity=".34"/>
+            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="fill" id="area" fill="url(#fadeDown)" d=""/>
+        <path class="edge" id="line" fill="none" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" d=""/>
+        <line x1="0" y1="56" x2="240" y2="56" stroke="var(--line)" stroke-width="1"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="scrim" id="loginModal">
+  <div class="modal">
+    <header class="mhead">
+      <div><h2>Conectar</h2><p>Informe suas credenciais</p></div>
+      <button class="x" onclick="closeLogin()">✕</button>
+    </header>
+    <div class="mbody" style="padding-top:16px;">
+      <div class="field" id="userGroup">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        <input id="username" type="text" placeholder="Usuário" autocomplete="username">
+      </div>
+      <div class="field" id="passGroup">
+        <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <input id="password" type="password" placeholder="Senha" autocomplete="current-password">
+      </div>
+      <div class="field hidden" id="uuidGroup">
+        <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5 20 3"/><path d="M17 6l3 3"/></svg>
+        <input id="uuid" type="text" placeholder="UUID V2Ray">
+      </div>
+    </div>
+    <div class="mfoot"><button class="btn-main" onclick="startConnection()">Conectar</button></div>
+  </div>
+</div>
+
+<!-- SERVERS -->
+<div class="scrim" id="serverModal">
+  <div class="modal">
+    <header class="mhead">
+      <div><h2>Escolher saída</h2><p id="srvCount">Carregando servidores…</p></div>
+      <button class="x" onclick="closeServers()">✕</button>
+    </header>
+    <div class="mbody" id="serverList"><div class="empty">Carregando…</div></div>
+  </div>
+</div>
+
+<!-- MENU -->
+<div class="scrim" id="menuModal">
+  <div class="modal">
+    <header class="mhead">
+      <div><h2>Menu</h2><p>Opções e ferramentas</p></div>
+      <button class="x" onclick="closeMenu()">✕</button>
+    </header>
+    <div class="mbody">
+      <button class="menu-item" onclick="menuAct('update')"><div class="mi"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/></svg></div><div class="mt"><b>Atualizar</b><small>Buscar novas configs</small></div></button>
+      <button class="menu-item" onclick="menuAct('speed')"><div class="mi"><svg viewBox="0 0 24 24"><path d="M4 15a8 8 0 1 1 16 0"/><line x1="12" y1="15" x2="15.5" y2="10.5"/></svg></div><div class="mt"><b>Speed Test</b><small>Testar velocidade</small></div></button>
+      <button class="menu-item" onclick="menuAct('painel')"><div class="mi"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><div class="mt"><b>Painel</b><small>Abrir painel do usuário</small></div></button>
+      <button class="menu-item" onclick="menuAct('apn')"><div class="mi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9"/></svg></div><div class="mt"><b>APN</b><small>Configurar acesso à rede</small></div></button>
+      <button class="menu-item" onclick="menuAct('hotspot')"><div class="mi"><svg viewBox="0 0 24 24"><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></div><div class="mt"><b>Hotspot</b><small>Compartilhar conexão</small></div></button>
+      <button class="menu-item" onclick="menuAct('airplane')"><div class="mi"><svg viewBox="0 0 24 24"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></div><div class="mt"><b>Modo Avião</b><small>Forçar renovação de IP</small></div></button>
+      <button class="menu-item" onclick="menuAct('battery')"><div class="mi"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="10" rx="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg></div><div class="mt"><b>Bateria</b><small>Ignorar otimização</small></div></button>
+      <button class="menu-item" onclick="menuAct('radioinfo')"><div class="mi"><svg viewBox="0 0 24 24"><path d="M2 20h20"/><path d="M5 20V10"/><path d="M9 20V4"/><path d="M13 20v-6"/><path d="M17 20V8"/></svg></div><div class="mt"><b>Forçar Rede</b><small>Ver informações de rede</small></div></button>
+      <button class="menu-item" onclick="menuAct('autoconnect')"><div class="mi"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div><div class="mt"><b>Auto Conectar</b><small>Conectar automaticamente</small></div></button>
+      <button class="menu-item" onclick="menuAct('checkupdate')"><div class="mi"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div class="mt"><b>Verificar Atualização</b><small>Ver se tem versão nova</small></div></button>
+      <button class="menu-item danger" onclick="menuAct('clean')"><div class="mi"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></div><div class="mt"><b>Limpar Dados</b><small>Apagar configs e cache</small></div></button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGS -->
+<div class="scrim" id="logModal">
+  <div class="modal">
+    <header class="mhead">
+      <div><h2>Registros</h2><p>Logs de conexão</p></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-left:auto;">
+        <button onclick="clearLogs()" style="font-size:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer;">Limpar</button>
+        <button class="x" onclick="closeLogs()">✕</button>
+      </div>
+    </header>
+    <div class="mbody" id="logBox"><span class="log-line">Aguardando conexão…</span></div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div class="scrim" id="profileModal">
+  <div class="modal">
+    <header class="mhead">
+      <div><h2>Perfil</h2><p>Informações da conta</p></div>
+      <button class="x" onclick="closeProfile()">✕</button>
+    </header>
+    <div class="mbody" id="profileBody"><div class="empty">Toque em Verificar para consultar.</div></div>
+    <div class="mfoot"><button class="btn-main" onclick="runCheckUser()">Verificar</button></div>
+  </div>
+</div>
+
+<!-- SPEED -->
+<div class="scrim" id="speedModal">
+  <div class="modal" style="max-height:90vh;">
+    <header class="mhead">
+      <div><h2>Speed Test</h2><p>Teste de velocidade</p></div>
+      <button class="x" onclick="closeSpeed()">✕</button>
+    </header>
+    <iframe id="speedFrame" style="width:100%;height:55vh;border:0;background:var(--bg-deep);" src=""></iframe>
+  </div>
+</div>
+
+<!-- HOTSPOT -->
+<div class="scrim" id="hotspotModal">
+  <div class="modal">
+    <header class="mhead">
+      <div><h2>Hotspot</h2><p>Compartilhar conexão</p></div>
+      <button class="x" onclick="closeHotspot()">✕</button>
+    </header>
+    <div class="mbody" style="padding-top:12px;">
+      <div class="hs-row">
+        <div class="hs-dot" id="hsDot"></div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;">STATUS</div>
+          <div id="hsStatus" style="font-weight:500;margin-top:2px;">Verificando…</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);text-align:center;padding:0 20px 8px;">Compartilhe sua VPN via Wi-Fi hotspot</p>
+    </div>
+    <div class="mfoot"><button class="btn-main" id="hsBtn" onclick="toggleHotspot()">Carregando…</button></div>
+  </div>
+</div>
+
+<!-- AUTO CONNECT -->
+<div class="scrim" id="autoModal">
+  <div class="modal">
+    <header class="mhead">
+      <div><h2>Auto Conectar</h2><p>Conexão automática</p></div>
+      <button class="x" onclick="closeAuto()">✕</button>
+    </header>
+    <div class="mbody" style="padding:16px 20px;">
+      <p style="font-size:13.5px;color:var(--muted);margin:0 0 16px;line-height:1.5;">Quando ativado, o app conecta automaticamente ao abrir, testando os servidores disponíveis.</p>
+      <div class="hs-row" style="margin:0;justify-content:space-between;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;">STATUS</div>
+          <div id="autoStatus" style="font-weight:500;margin-top:2px;">Desativado</div>
+        </div>
+        <button class="sw" id="autoToggle" role="switch" aria-checked="false" onclick="toggleAuto()"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERT -->
+<div class="scrim" id="alertModal">
+  <div class="modal">
+    <header class="mhead">
+      <div><h2 id="alertTitle">Aviso</h2></div>
+      <button class="x" onclick="closeAlert()">✕</button>
+    </header>
+    <div class="mbody" style="padding:16px 20px;"><p id="alertMsg" style="margin:0;color:var(--muted);font-size:14px;line-height:1.5;"></p></div>
+    <div class="mfoot" id="alertActions"><button class="btn-main" onclick="closeAlert()">OK</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* ========== BRIDGE & STORAGE ========== */
+  const LS = {
+    get(k,fb=null){ try{ const r=localStorage.getItem(k); return r==null?fb:JSON.parse(r);}catch(e){return fb;} },
+    set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true;}catch(e){return false;} },
+    remove(k){ try{ localStorage.removeItem(k);}catch(e){} }
+  };
+  const B = {
+    exec(n,fb=''){ try{ const o=window[n]; if(o?.execute) return o.execute(); }catch(e){} return fb; },
+    get(n,fb=''){ try{ const o=window[n]; if(o?.get) return o.get(); }catch(e){} return fb; },
+    set(n,v){ try{ const o=window[n]; if(o?.set) o.set(String(v??'')); }catch(e){} },
+    json(n,fb){ try{ return JSON.parse(B.exec(n,'')||''); }catch(e){ return fb; } },
+    clean(v){ const s=String(v??'').trim(); return s.toLowerCase()==='locked'?'':s; }
+  };
+
+  function show(id){ document.getElementById(id).classList.add('open'); }
+  function hide(id){ document.getElementById(id).classList.remove('open'); }
+
+  /* ========== SPARKLINE ========== */
+  const N=56, vals=new Array(N).fill(0);
+  let live=0;
+  const areaEl=document.getElementById('area'), lineEl=document.getElementById('line'), rateEl=document.getElementById('rate');
+  function draw(){
+    const W=240,TOP=8,BOT=56,step=W/(N-1);
+    let d='',a='M0,'+BOT;
+    for(let i=0;i<N;i++){
+      const x=(i*step).toFixed(1), y=(BOT-(BOT-TOP)*vals[i]).toFixed(1);
+      d+=(i?'L':'M')+x+','+y; a+='L'+x+','+y;
+    }
+    lineEl.setAttribute('d',d); areaEl.setAttribute('d',a+'L'+W+','+BOT+'Z');
+  }
+  function pump(){
+    if(vpnConnected){ let t=.22+Math.random()*.52; if(Math.random()<.13) t=.82+Math.random()*.18; live+=(t-live)*.42; }
+    else if(vpnConnecting){ live+=(.14-live)*.3; }
+    else { live*=.7; if(live<.004) live=0; }
+    vals.push(live); vals.shift(); draw();
+    rateEl.textContent=(live*11.4).toFixed(1).replace('.',',')+' MB/s';
+  }
+  draw(); setInterval(pump,320);
+
+  /* ========== STATE ========== */
+  let vpnConnected=false, vpnConnecting=false, lastState='DISCONNECTED';
+  let configs=[], selectedId=null;
+  let connectStart=null, timerInt=null;
+  let statsInt=null, lastDown=null, lastUp=null, lastStatsT=null;
+  let logPoll=null, clearedLogCount=0, renderedLogCount=0;
+  let autoEnabled=false, autoSeq=false, autoQueue=[], autoIdx=0, autoTimer=null;
+  let hsPoll=null, airplaneRunning=false;
+
+  function setAccent(c){ document.documentElement.style.setProperty('--accent', c); }
+
+  function renderState(state){
+    const wasOnline = lastState==='CONNECTED'||lastState==='AUTH';
+    const reconnecting = wasOnline && (state==='CONNECTING'||state==='NO_NETWORK');
+    const body=document.body;
+    const dial=document.getElementById('dial');
+    const label=document.getElementById('dialLabel');
+    const status=document.getElementById('status');
+    const acct=document.getElementById('statusAcct');
+    const dot=document.getElementById('statusDot');
+    const stats=[document.getElementById('s1'),document.getElementById('s2'),document.getElementById('s3')];
+    const flow=document.getElementById('flow');
+
+    if(state==='CONNECTED'){
+      body.classList.remove('busy'); body.classList.add('on');
+      setAccent('var(--signal)');
+      status.textContent='Protegido';
+      label.textContent='Desconectar';
+      dial.setAttribute('aria-pressed','true');
+      acct.textContent='Protegido';
+      stats.forEach(s=>s.classList.remove('dim'));
+      flow.classList.remove('dim');
+      startTimer(); startStats();
+      if(!wasOnline) log('✓ Conectado!','#E9A166');
+      try{ const ip=B.exec('DtGetLocalIP',''); if(ip) document.getElementById('ip').textContent=ip; }catch(e){}
+    } else if(['CONNECTING','AUTH','DISCONNECTING'].includes(state) || reconnecting){
+      body.classList.add('busy'); body.classList.remove('on');
+      setAccent('var(--warm)');
+      status.textContent = reconnecting ? 'Reconectando' : (state==='AUTH'?'Autenticando':'Abrindo o túnel');
+      label.textContent='Cancelar';
+      dial.setAttribute('aria-pressed','true');
+      acct.textContent = reconnecting ? 'Reconectando' : 'Conectando';
+      if(reconnecting) log('Reconectando…','#B98A6B');
+    } else {
+      body.classList.remove('on','busy');
+      setAccent('var(--muted)');
+      status.textContent = state==='AUTH_FAILED'?'Falha auth': state==='NO_NETWORK'?'Sem rede':'Desprotegido';
+      label.textContent='Conectar';
+      dial.setAttribute('aria-pressed','false');
+      acct.textContent='Desconectado';
+      stats.forEach(s=>s.classList.add('dim'));
+      flow.classList.add('dim');
+      stopTimer(); stopStats();
+      if(state==='DISCONNECTED') log('Desconectado.','#9E877A');
+      if(state==='AUTH_FAILED') log('Falha de autenticação.','#E07070');
+      if(state==='NO_NETWORK') log('Sem rede.','#E07070');
+    }
+
+    vpnConnected = state==='CONNECTED';
+    vpnConnecting = ['CONNECTING','AUTH','DISCONNECTING'].includes(state);
+
+    if(autoSeq){
+      if(state==='CONNECTED'){
+        clearTimeout(autoTimer); autoSeq=false;
+        if(autoQueue[autoIdx]) LS.set('nexus_srv', autoQueue[autoIdx]);
+        log('Auto conectar: conectado.','#E9A166');
+      } else if(!reconnecting && (state==='AUTH_FAILED'||state==='NO_NETWORK')){
+        clearTimeout(autoTimer); B.exec('DtExecuteVpnStop'); autoIdx++;
+        setTimeout(attemptAuto,400);
+      }
+    }
+    lastState=state;
+  }
+
+  /* ========== TIMER ========== */
+  function fmtT(ms){ const t=Math.floor(ms/1000); return String(Math.floor(t/3600)).padStart(2,'0')+':'+String(Math.floor((t%3600)/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'); }
+  function startTimer(){ stopTimer(); connectStart=Date.now(); document.getElementById('clock').textContent='00:00:00';
+    timerInt=setInterval(()=>{ if(connectStart) document.getElementById('clock').textContent=fmtT(Date.now()-connectStart); },1000); }
+  function stopTimer(){ clearInterval(timerInt); timerInt=null; connectStart=null; document.getElementById('clock').textContent='00:00:00'; }
+
+  /* ========== STATS ========== */
+  function startStats(){ stopStats(); lastDown=lastUp=lastStatsT=null; updateStats(); statsInt=setInterval(updateStats,1000); }
+  function stopStats(){ clearInterval(statsInt); statsInt=null; lastDown=lastUp=lastStatsT=null;
+    document.getElementById('statDown').textContent='0.0'; document.getElementById('statUp').textContent='0.0'; }
+  function updateStats(){
+    try{
+      const now=Date.now();
+      const dR=parseFloat(B.exec('DtGetNetworkDownloadBytes',''));
+      const uR=parseFloat(B.exec('DtGetNetworkUploadBytes',''));
+      if(!isNaN(dR)&&lastDown!=null&&lastStatsT!=null){ const d=(now-lastStatsT)/1000; if(d>0){ const m=((dR-lastDown)*8)/d/1e6; if(m>=0) document.getElementById('statDown').textContent=m.toFixed(1); } }
+      if(!isNaN(uR)&&lastUp!=null&&lastStatsT!=null){ const d=(now-lastStatsT)/1000; if(d>0){ const m=((uR-lastUp)*8)/d/1e6; if(m>=0) document.getElementById('statUp').textContent=m.toFixed(1); } }
+      if(!isNaN(dR)) lastDown=dR; if(!isNaN(uR)) lastUp=uR; lastStatsT=now;
+    }catch(e){}
+  }
+
+  /* ========== PING ========== */
+  async function updatePing(){
+    const el=document.getElementById('serverPing');
+    const start=performance.now();
+    try{ await fetch('https://www.gstatic.com/generate_204',{mode:'no-cors',cache:'no-store'}); el.textContent=Math.round(performance.now()-start)+' ms'; }
+    catch(e){ el.textContent='-- ms'; }
+  }
+  setInterval(updatePing,5000);
+
+  /* ========== LOGS ========== */
+  function log(msg,color){
+    const box=document.getElementById('logBox');
+    if(!box) return;
+    const ph=box.querySelector('.log-line');
+    if(ph && (ph.textContent.includes('Aguardando')||ph.textContent.includes('Log limpo'))) box.innerHTML='';
+    const s=document.createElement('span');
+    s.className='log-line';
+    s.style.color=color||'var(--muted)';
+    s.textContent=new Date().toTimeString().slice(0,8)+' '+String(msg).replace(/<[^>]*>/g,'');
+    box.appendChild(s);
+    while(box.children.length>60) box.removeChild(box.firstChild);
+    box.scrollTop=box.scrollHeight;
+  }
+  function clearLogs(){
+    try{ const rows=JSON.parse(B.exec('DtGetLogs','')||'[]'); clearedLogCount=Array.isArray(rows)?rows.length:0; }
+    catch(e){ clearedLogCount=0; }
+    renderedLogCount=clearedLogCount;
+    document.getElementById('logBox').innerHTML='<span class="log-line" style="color:var(--signal)">Log limpo.</span>';
+  }
+  function pullLogs(){
+    try{
+      const raw=B.exec('DtGetLogs',''); if(!raw||raw==='[]') return;
+      const rows=JSON.parse(raw); if(!Array.isArray(rows)||!rows.length) return;
+      if(clearedLogCount>rows.length) clearedLogCount=0;
+      if(renderedLogCount<clearedLogCount) renderedLogCount=clearedLogCount;
+      if(renderedLogCount>rows.length) renderedLogCount=clearedLogCount;
+      const neu=rows.slice(renderedLogCount); if(!neu.length) return;
+      const box=document.getElementById('logBox');
+      const ph=box.querySelector('.log-line');
+      if(ph && (ph.textContent.includes('Aguardando')||ph.textContent.includes('Log limpo'))) box.innerHTML='';
+      neu.forEach(r=>{
+        let ts='',msg='';
+        if(typeof r==='string') msg=r;
+        else{ const k=Object.keys(r); ts=k[0]||''; msg=String(r[ts]||r.message||r.msg||''); }
+        msg=msg.replace(/<[^>]*>/g,'').trim(); if(!msg) return;
+        const line=ts?ts+' '+msg:msg; const sl=line.toLowerCase();
+        const c=/error|fail|falha|invalid|block|timeout/.test(sl)?'#E07070':
+                /connect|succes|101|200/.test(sl)?'#E9A166':
+                /auth|warn/.test(sl)?'#B98A6B':'var(--muted)';
+        const s=document.createElement('span'); s.className='log-line'; s.style.color=c; s.textContent=line; box.appendChild(s);
+      });
+      renderedLogCount=rows.length;
+      while(box.children.length>60) box.removeChild(box.firstChild);
+      box.scrollTop=box.scrollHeight;
+    }catch(e){}
+  }
+  function openLogs(){ pullLogs(); show('logModal'); logPoll=setInterval(pullLogs,2000); }
+  function closeLogs(){ hide('logModal'); clearInterval(logPoll); logPoll=null; }
+
+  /* ========== CONNECT ========== */
+  function handleConnect(){
+    if(vpnConnected){ log('Parando VPN…','#9E877A'); B.exec('DtExecuteVpnStop'); return; }
+    if(vpnConnecting){ log('Cancelando…','#9E877A'); B.exec('DtExecuteVpnStop'); return; }
+    openLogin();
+  }
+  function openLogin(){ show('loginModal'); }
+  function closeLogin(){ hide('loginModal'); }
+  function startConnection(){
+    B.set('DtUsername', document.getElementById('username').value);
+    B.set('DtPassword', document.getElementById('password').value);
+    B.set('DtUuid', document.getElementById('uuid').value||'');
+    if(selectedId) dtSetCfg(selectedId);
+    closeLogin();
+    renderState('CONNECTING');
+    log('Iniciando conexão…','#B98A6B');
+    B.exec('DtExecuteVpnStart');
+  }
+
+  /* ========== SERVERS ========== */
+  function dtSetCfg(id){ const n=parseInt(id); try{ window.DtSetConfig.execute(isNaN(n)?String(id):n); }catch(e){} }
+  function iconEmoji(mode){ const m=String(mode||'').toUpperCase(); if(m.includes('V2RAY')||m.includes('VMESS')||m.includes('VLESS')||m.includes('XRAY')) return '🚀'; if(m.includes('SSH')||m.includes('XHTTP')) return '📟'; if(m.includes('SSL')) return '🔒'; return '🌐'; }
+  function isLocked(v){ return String(v??'').trim().toLowerCase()==='locked'; }
+  function isUuidMode(cfg){ const m=String(cfg?.mode||'').toLowerCase(); if(m.includes('xhttp')) return false; return m.includes('v2ray')||m.includes('xray')||m.includes('vmess')||m.includes('vless'); }
+  function updateAuthVis(item){
+    const auth=item?.auth||{};
+    const uuidLocked=isLocked(B.get('DtUuid'));
+    const uuidReq=(auth.v2ray_uuid||auth.manual_v2ray_uuid||isUuidMode(item))&&!uuidLocked;
+    const sshReq=(auth.username||auth.manual_username||auth.password||auth.manual_password||!isLocked(B.get('DtUsername'))||!isLocked(B.get('DtPassword')))&&!uuidReq;
+    document.getElementById('uuidGroup').classList.toggle('hidden',!uuidReq);
+    document.getElementById('userGroup').classList.toggle('hidden',!sshReq);
+    document.getElementById('passGroup').classList.toggle('hidden',!sshReq);
+  }
+  function displayServer(item){
+    document.getElementById('serverName').textContent=item.name||'—';
+    document.getElementById('serverDesc').textContent=item.description||item.mode||'Toque para escolher';
+    updateAuthVis(item);
+  }
+  function findItem(id){ for(const g of configs) for(const it of (g.items||[])) if(String(it.id)===String(id)) return it; return null; }
+  function selectServer(item){ selectedId=item.id; dtSetCfg(item.id); displayServer(item); LS.set('nexus_srv',item); closeServers(); }
+  function renderServers(){
+    const box=document.getElementById('serverList');
+    if(!configs.length){ box.innerHTML='<div class="empty">Nenhum servidor disponível</div>'; document.getElementById('srvCount').textContent='0 servidores'; return; }
+    let total=0; configs.forEach(g=>total+=(g.items||[]).length);
+    document.getElementById('srvCount').textContent=total+' servidor'+(total!==1?'es':'');
+    box.innerHTML='';
+    configs.forEach(g=>{
+      if(g.name){ const l=document.createElement('div'); l.className='cat'; l.textContent=g.name; box.appendChild(l); }
+      (g.items||[]).forEach(item=>{
+        const active=String(item.id)===String(selectedId);
+        const el=document.createElement('button');
+        el.className='srv'+(active?' active':'');
+        const icon=(item.icon?.startsWith('http'))?`<img src="${item.icon}">`:iconEmoji(item.mode);
+        el.innerHTML=`<span class="icon">${icon}</span><span class="place"><b>${item.name||'—'}</b><small>${item.description||item.mode||''}</small></span>${active?'<span style="color:var(--signal)">✓</span>':''}`;
+        el.onclick=()=>selectServer(item);
+        box.appendChild(el);
+      });
+    });
+  }
+  function loadConfigs(){
+    try{ configs=JSON.parse(B.exec('DtGetConfigs','[]')||'[]'); }catch(e){ configs=[]; }
+    try{ const cur=B.json('DtGetDefaultConfig',{}); if(cur?.id&&!findItem(cur.id)) configs.unshift({id:'_imp',name:'IMPORTADO',items:[cur]}); }catch(e){}
+  }
+  function loadDefault(){
+    try{ const cur=B.json('DtGetDefaultConfig',{}); if(cur?.id){ const item=findItem(cur.id)||cur; selectedId=item.id; dtSetCfg(item.id); displayServer(item); LS.set('nexus_srv',item); return; } }catch(e){}
+    const saved=LS.get('nexus_srv',null);
+    if(saved?.id){ const item=findItem(saved.id)||saved; selectedId=item.id; dtSetCfg(item.id); displayServer(item); return; }
+    if(configs.length&&configs[0].items?.length) selectServer(configs[0].items[0]);
+  }
+  function openServers(){ renderServers(); show('serverModal'); }
+  function closeServers(){ hide('serverModal'); }
+
+  /* ========== MENU ========== */
+  function openMenu(){ show('menuModal'); }
+  function closeMenu(){ hide('menuModal'); }
+  function openExt(url){ try{ window.DtStartWebViewActivity.execute(url); }catch(e){ window.open(url,'_blank'); } }
+  function menuAct(a){
+    ({
+      update:()=>{ closeMenu(); log('Atualizando configs…','#B98A6B'); B.exec('DtStartAppUpdate'); },
+      speed:()=>{ closeMenu(); openSpeed(); },
+      painel:()=>{ closeMenu(); openExt('https://painel.dspeed.shop'); },
+      apn:()=>{ closeMenu(); B.exec('DtStartApnActivity'); },
+      hotspot:()=>{ closeMenu(); openHotspot(); },
+      airplane:()=>{ closeMenu(); doAirplane(); },
+      battery:()=>{ closeMenu(); B.exec('DtIgnoreBatteryOptimizations'); },
+      radioinfo:()=>{ closeMenu(); B.exec('DtStartRadioInfoActivity'); },
+      autoconnect:()=>{ closeMenu(); openAuto(); },
+      checkupdate:()=>{ closeMenu(); checkUpdate(false); },
+      clean:()=>{ if(confirm('Limpar todos os dados?')){ closeMenu(); LS.remove('nexus_srv'); LS.remove('nexus_autoconnect'); B.exec('DtCleanApp'); } }
+    })[a]?.();
+  }
+
+  /* ========== PROFILE ========== */
+  function openProfile(){ show('profileModal'); }
+  function closeProfile(){ hide('profileModal'); }
+  function runCheckUser(){ document.getElementById('profileBody').innerHTML='<div class="empty">Verificando…</div>'; log('Verificando usuário…','#B98A6B'); B.exec('DtStartCheckUser'); }
+  function renderProfile(d){
+    const box=document.getElementById('profileBody');
+    if(!d||!Object.keys(d).length){ box.innerHTML='<div class="empty">Nenhuma informação disponível.</div>'; return; }
+    const rows=[];
+    if(d.username) rows.push(['Usuário',d.username]);
+    if(d.expiration_date) rows.push(['Vencimento',d.expiration_date]);
+    if(d.expiration_days!=null) rows.push(['Dias restantes',d.expiration_days]);
+    if(d.limit_connections) rows.push(['Conexões',`${d.count_connections??0}/${d.limit_connections}`]);
+    if(d.message) rows.push(['Mensagem',d.message]);
+    box.innerHTML=rows.map(([k,v])=>`<div class="profile-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')||'<div class="empty">Sem dados.</div>';
+  }
+
+  /* ========== SPEED ========== */
+  function openSpeed(){ show('speedModal'); document.getElementById('speedFrame').src='https://fast.com'; }
+  function closeSpeed(){ hide('speedModal'); document.getElementById('speedFrame').src=''; }
+
+  /* ========== HOTSPOT ========== */
+  function isHsOn(){ return String(B.exec('DtGetStatusHotSpotService','STOPPED')).toUpperCase().trim()==='RUNNING'; }
+  function refreshHs(){ const on=isHsOn(); document.getElementById('hsDot').classList.toggle('on',on); document.getElementById('hsStatus').textContent=on?'Ligado':'Desligado'; document.getElementById('hsBtn').textContent=on?'Desligar':'Ligar'; }
+  function toggleHotspot(){ if(isHsOn()){ B.exec('DtStopHotSpotService'); log('[HOTSPOT] Desligando…','#9E877A'); } else { B.exec('DtStartHotSpotService'); log('[HOTSPOT] Ligando…','#B98A6B'); } setTimeout(refreshHs,700); }
+  function openHotspot(){ refreshHs(); show('hotspotModal'); hsPoll=setInterval(refreshHs,2000); }
+  function closeHotspot(){ hide('hotspotModal'); clearInterval(hsPoll); hsPoll=null; }
+  window.DtHotspotStateListener=()=>refreshHs();
+
+  /* ========== AUTO ========== */
+  function loadAuto(){ autoEnabled=LS.get('nexus_autoconnect',false)===true; document.getElementById('autoToggle').setAttribute('aria-checked',autoEnabled?'true':'false'); document.getElementById('autoStatus').textContent=autoEnabled?'Ativado':'Desativado'; }
+  function toggleAuto(){ autoEnabled=!autoEnabled; LS.set('nexus_autoconnect',autoEnabled); document.getElementById('autoToggle').setAttribute('aria-checked',autoEnabled?'true':'false'); document.getElementById('autoStatus').textContent=autoEnabled?'Ativado':'Desativado'; log('Auto conectar '+(autoEnabled?'ativado':'desativado')+'.','#9E877A'); }
+  function openAuto(){ show('autoModal'); }
+  function closeAuto(){ hide('autoModal'); }
+  function flattenSrv(){ const l=[]; configs.forEach(g=>(g.items||[]).forEach(it=>l.push(it))); return l; }
+  function startAutoSeq(){ autoQueue=flattenSrv(); if(!autoQueue.length){ log('Nenhum servidor.','#E07070'); return; } autoSeq=true; autoIdx=0; log('Auto conectar: testando…','#9E877A'); attemptAuto(); }
+  function attemptAuto(){
+    if(!autoSeq) return;
+    if(autoIdx>=autoQueue.length){ log('Nenhum servidor respondeu.','#E07070'); autoSeq=false; renderState('DISCONNECTED'); return; }
+    const item=autoQueue[autoIdx]; selectedId=item.id; dtSetCfg(item.id); displayServer(item);
+    log(`Tentando "${item.name||item.id}"…`,'#B98A6B'); renderState('CONNECTING'); B.exec('DtExecuteVpnStart');
+    clearTimeout(autoTimer);
+    autoTimer=setTimeout(()=>{ if(autoSeq&&!vpnConnected){ B.exec('DtExecuteVpnStop'); autoIdx++; setTimeout(attemptAuto,400); } },4500);
+  }
+
+  /* ========== AIRPLANE ========== */
+  function doAirplane(){
+    if(airplaneRunning) return; airplaneRunning=true;
+    log('[AVIÃO] Parando VPN…','#9E877A'); B.exec('DtExecuteVpnStop');
+    setTimeout(()=>{ B.exec('DtAirplaneActivate');
+      setTimeout(()=>{ B.exec('DtAirplaneDeactivate');
+        setTimeout(()=>{ B.exec('DtExecuteVpnStart'); airplaneRunning=false; },2000);
+      },8000);
+    },1000);
+  }
+
+  /* ========== UPDATE ========== */
+  const APP_VER='5';
+  const UPDATE_URL='https://gist.githubusercontent.com/Willapela/bfcf345ed0a07a749e3db2557baf5be1/raw/gistfile1.txt';
+  const FALLBACK_APK='https://www.mediafire.com/file/ewy3vbl8d1th9zr/DSPEED_V5.apk/file';
+  let pendingVer=null, pendingUrl='';
+  function showAlert(title,msg,html){
+    document.getElementById('alertTitle').textContent=title;
+    document.getElementById('alertMsg').textContent=msg;
+    if(html) document.getElementById('alertActions').innerHTML=html;
+    else document.getElementById('alertActions').innerHTML='<button class="btn-main" onclick="closeAlert()">OK</button>';
+    show('alertModal');
+  }
+  function closeAlert(){ hide('alertModal'); if(pendingVer) LS.set('nexus_update_dismissed',pendingVer); }
+  window.closeAlert=closeAlert;
+  window.downloadUpdate=function(){ closeAlert(); openExt(pendingUrl||FALLBACK_APK); };
+  async function checkUpdate(silent=true){
+    try{
+      const res=await fetch(UPDATE_URL+'?_cb='+Date.now(),{cache:'no-store'});
+      if(!res.ok){ if(!silent) log('Não foi possível verificar.','#E07070'); return; }
+      const raw=await res.text();
+      const cleaned=raw.replace(/[\u201C\u201D]/g,'"').replace(/[\u2018\u2019]/g,"'").replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u2060\u3000\uFEFF]/g,' ').trim();
+      let data; try{ data=JSON.parse(cleaned); }catch(e){ if(!silent) log('JSON inválido.','#E07070'); return; }
+      if(!data?.version){ if(!silent) log('Sem dados.','#E07070'); return; }
+      if(String(data.version)===String(APP_VER)){ if(!silent) log('Já está atualizado.','#E9A166'); return; }
+      if(silent && LS.get('nexus_update_dismissed')===String(data.version)) return;
+      pendingVer=String(data.version); pendingUrl=data.url||FALLBACK_APK;
+      showAlert('Atualização Disponível', `Nova versão (v${data.version}) disponível.`,
+        `<button class="btn-main" style="background:var(--surface);color:var(--ink);border:1px solid var(--line);margin-bottom:8px;" onclick="closeAlert()">Agora não</button>
+         <button class="btn-main" onclick="downloadUpdate()">Atualizar</button>`);
+    }catch(e){ if(!silent) log('Falha ao verificar.','#E07070'); }
+  }
+
+  /* ========== NATIVE CALLBACKS ========== */
+  window.DtVpnStateListener = s => { if(s) renderState(s); };
+  window.dtVpnStoppedSuccessListener = () => { lastState='DISCONNECTING'; renderState('DISCONNECTED'); };
+  const ERR = { LOGIN_EXPIRED:'Login expirado.', LOGIN_INVALID:'Usuário ou senha inválidos.', LOGIN_LIMIT:'Limite de conexões.', PROXY_FORBIDDEN:'Proxy bloqueou.', PROXY_BAD_REQUEST:'Payload inválido.', PROXY_RATE_LIMITED:'Muitas tentativas.', PROXY_SERVER_ERROR:'Erro no proxy.', AUTH_FAILED:'Falha na autenticação.' };
+  function friendlyErr(e){ const c=String(e?.code||''); if(ERR[c]) return ERR[c]; if(c.startsWith('PROXY_HTTP_')) return 'Proxy respondeu '+c.replace('PROXY_HTTP_','')+'.'; return e?.message||'Falha na conexão.'; }
+  window.dtConnectionErrorListener = e => { log('[ERRO] '+friendlyErr(e),'#E07070'); renderState('DISCONNECTED'); };
+  window.DtConnectionErrorListener = window.dtConnectionErrorListener;
+  window.dtAuthErrorListener = window.dtConnectionErrorListener;
+  window.DtAuthErrorListener = window.dtConnectionErrorListener;
+  window.DtLogsUpdatedListener = () => pullLogs();
+  window.dtLogsUpdatedListener = window.DtLogsUpdatedListener;
+  window.DtLogListener = m => { if(m) log(String(m)); };
+  window.DtUpdatePayloadSuccessListener = () => { log('✓ Configs atualizadas!','#E9A166'); loadConfigs(); loadDefault(); showAlert('Sucesso','Configurações atualizadas!'); };
+  window.DtUpdatePayloadErrorListener = m => { log('✗ Erro: '+(m||''),'#E07070'); showAlert('Erro','Erro ao atualizar'+(m?': '+m:'.')); };
+  window.dtCheckUserStartedListener = () => { log('Verificando usuário…','#B98A6B'); document.getElementById('profileBody').innerHTML='<div class="empty">Verificando…</div>'; };
+  window.dtCheckUserModelListener = function(j){ let d={}; try{ d=typeof j==='string'?JSON.parse(j):(j||{}); }catch(e){} if(d.username) log('Usuário: '+d.username,'#E9A166'); if(d.expiration_date) log('Expira: '+d.expiration_date,'#B98A6B'); renderProfile(d); };
+  window.DtCheckUserModelListener = window.dtCheckUserModelListener;
+
+  /* ========== CLOSE ON OVERLAY ========== */
+  ['loginModal','serverModal','menuModal','logModal','profileModal','speedModal','hotspotModal','autoModal','alertModal'].forEach(id=>{
+    document.getElementById(id).addEventListener('click', e=>{
+      if(e.target.id===id){
+        hide(id);
+        if(id==='logModal'){ clearInterval(logPoll); logPoll=null; }
+        if(id==='speedModal') document.getElementById('speedFrame').src='';
+        if(id==='hotspotModal'){ clearInterval(hsPoll); hsPoll=null; }
+      }
+    });
+  });
+
+  /* ========== INIT ========== */
+  window.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById('username').value=B.clean(B.get('DtUsername'));
+    document.getElementById('password').value=B.clean(B.get('DtPassword'));
+    document.getElementById('uuid').value=B.clean(B.get('DtUuid'));
+    document.getElementById('username').oninput=e=>B.set('DtUsername',e.target.value);
+    document.getElementById('password').oninput=e=>B.set('DtPassword',e.target.value);
+    document.getElementById('uuid').oninput=e=>B.set('DtUuid',e.target.value);
+
+    loadConfigs(); loadDefault(); updatePing(); loadAuto();
+    setTimeout(()=>checkUpdate(true),1500);
+
+    const init=B.exec('DtGetVpnState','DISCONNECTED');
+    renderState(init||'DISCONNECTED');
+    try{ const err=B.json('DtGetLastConnectionError',{}); if(err?.code) window.dtConnectionErrorListener(err); }catch(e){}
+
+    if(autoEnabled && (!init||init==='DISCONNECTED')){
+      const u=document.getElementById('username').value, p=document.getElementById('password').value, uid=document.getElementById('uuid').value;
+      if((u&&p)||uid) setTimeout(startAutoSeq,600);
+    }
+
+    let last=init;
+    setInterval(()=>{ try{ const s=B.exec('DtGetVpnState','DISCONNECTED'); if(s&&s!==last){ last=s; renderState(s); } }catch(e){} },1000);
+  });
+
+  /* expose for onclick */
+  window.handleConnect=handleConnect;
+  window.openLogin=openLogin; window.closeLogin=closeLogin; window.startConnection=startConnection;
+  window.openServers=openServers; window.closeServers=closeServers;
+  window.openMenu=openMenu; window.closeMenu=closeMenu; window.menuAct=menuAct;
+  window.openLogs=openLogs; window.closeLogs=closeLogs; window.clearLogs=clearLogs;
+  window.openProfile=openProfile; window.closeProfile=closeProfile; window.runCheckUser=runCheckUser;
+  window.openSpeed=openSpeed; window.closeSpeed=closeSpeed;
+  window.openHotspot=openHotspot; window.closeHotspot=closeHotspot; window.toggleHotspot=toggleHotspot;
+  window.openAuto=openAuto; window.closeAuto=closeAuto; window.toggleAuto=toggleAuto;
+})();
+</script>
+</body>
+</html>
